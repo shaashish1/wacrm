@@ -35,7 +35,6 @@ whatsapp-bulk/
 ├── README.md
 ├── whatsapp-cron/
 └── db.sql
-
 ````
 
 ---
