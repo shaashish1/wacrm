@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.2
+-- version 5.2.3
 -- https://www.phpmyadmin.net/
 --
--- Host: DB
--- Generation Time: Nov 12, 2025 at 01:35 PM
+-- Host: db
+-- Generation Time: Nov 12, 2025 at 05:09 PM
 -- Server version: 10.11.14-MariaDB-ubu2204
--- PHP Version: 8.2.29
+-- PHP Version: 8.3.26
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -33,6 +33,7 @@ CREATE TABLE `broker` (
   `type` varchar(50) NOT NULL,
   `text` longtext NOT NULL,
   `status` int(1) NOT NULL COMMENT '0=pending, 1=sent, 2=faild',
+  `retry` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
   `create_at` int(10) NOT NULL,
   `update_at` int(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -41,8 +42,8 @@ CREATE TABLE `broker` (
 -- Dumping data for table `broker`
 --
 
-INSERT INTO `broker` (`id`, `mobile`, `type`, `text`, `status`, `create_at`, `update_at`) VALUES
-(1, '09131111010', 'test', 'سلام\r\nپیام تست می باشد.', 1, 111, NULL);
+INSERT INTO `broker` (`id`, `mobile`, `type`, `text`, `status`, `retry`, `create_at`, `update_at`) VALUES
+(1, '09131111010', 'test', 'سلام\r\nپیام تست می باشد.', 1, 0, 111, NULL);
 
 --
 -- Indexes for dumped tables
@@ -52,7 +53,8 @@ INSERT INTO `broker` (`id`, `mobile`, `type`, `text`, `status`, `create_at`, `up
 -- Indexes for table `broker`
 --
 ALTER TABLE `broker`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_status_retry_create` (`status`,`retry`,`create_at`);
 
 --
 -- AUTO_INCREMENT for dumped tables
