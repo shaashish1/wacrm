@@ -80,6 +80,17 @@ DB_NAME=db
 DB_PORT=3306
 ```
 
+
+### 🔁 Retry Mechanism
+
+- New rows start with `retry = 0`.
+- The sender only fetches jobs with `status = 0` **and** `retry < 3`.
+- On a send failure, `retry` is incremented by 1.
+- When `retry` reaches 3, the row is automatically marked `status = 2` (failed).
+- On success, `status` becomes `1` and `retry` is reset to `0`.
+
+**Why?** This prevents endless retries to unreachable numbers and keeps the queue clean.
+
 ---
 
 ## 🧱 Database Setup
@@ -94,15 +105,16 @@ mysql -u username -p db < db.sql
 
 The database includes a `broker` table for managing messages:
 
-| Column    | Type        | Description                 |
-| --------- | ----------- | --------------------------- |
-| id        | bigint(20)  | Primary key                 |
-| mobile    | varchar(20) | Recipient phone number      |
-| type      | varchar(50) | Message type or category    |
-| text      | longtext    | Message content             |
-| status    | int(1)      | 0=pending, 1=sent, 2=failed |
-| create_at | int(10)     | Creation timestamp          |
-| update_at | int(10)     | Last update timestamp       |
+| Column    | Type                 | Description                              |
+|---------- |----------------------|------------------------------------------|
+| id        | bigint(20)           | Primary key                              |
+| mobile    | varchar(20)          | Recipient phone number                   |
+| type      | varchar(50)          | Message type or category                 |
+| text      | longtext             | Message content                          |
+| status    | int(1)               | 0=pending, 1=sent, 2=failed              |
+| retry     | tinyint unsigned     | Delivery attempts (default **0**)        |
+| create_at | int(10)              | Creation timestamp (Unix seconds)        |
+| update_at | int(10)              | Last update timestamp (Unix seconds)     |
 
 Example data:
 
