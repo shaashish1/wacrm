@@ -71,9 +71,10 @@ async function fetchContacts() {
     }
 
     const sql = `
-      SELECT id, mobile, text
+      SELECT id, mobile, text, retry
       FROM broker
       WHERE status = 0
+        AND retry < 3
       ORDER BY create_at ASC
       LIMIT ?
     `;
@@ -89,6 +90,33 @@ async function fetchContacts() {
   } catch (error) {
     console.error("DB Error:", error);
     return [];
+  }
+}
+
+async function markAsFailed(id) {
+  try {
+    const connection = await mysql.createConnection({
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      port: process.env.DB_PORT || 3306
+    });
+
+    const now = getTehranUnixTime();
+
+    await connection.execute(
+      `UPDATE broker
+       SET retry = retry + 1,
+           update_at = ?,
+           status = IF(retry + 1 >= 3, 2, status)
+       WHERE id = ?`,
+      [now, id]
+    );
+
+    await connection.end();
+  } catch (error) {
+    console.error(`Failed to increment retry for id ${id}:`, error);
   }
 }
 
@@ -137,10 +165,13 @@ client.on('ready', async () => {
       console.log(`Message sent to ${contact.mobile}`);
 
       await markAsSent(contact.id);
+      
       console.log(`Status updated for id ${contact.id}`);
     }
     catch (err) {
       console.error(`Failed to send to ${contact.mobile}:`, err.message || err);
+      
+      await markAsFailed(contact.id);
     }
 
     await new Promise(r => setTimeout(r, 30 * 1000));
