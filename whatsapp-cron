@@ -1,0 +1,1 @@
+0 * * * * cd /usr/src/app && node app.js >> /var/log/whatsapp.log 2>&1
