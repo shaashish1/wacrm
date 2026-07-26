@@ -51,7 +51,7 @@ export async function GET(
     const provider = await providerFactory(accountId)
     const { buffer, mimeType } = await provider.downloadMedia(accountId, mediaId)
 
-    return new Response(buffer, {
+    return new Response(buffer as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': mimeType || 'application/octet-stream',
