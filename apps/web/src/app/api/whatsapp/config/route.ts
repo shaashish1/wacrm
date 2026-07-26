@@ -222,6 +222,14 @@ export async function POST(request: Request) {
            status: 'disconnected',
          }, { onConflict: 'account_id' })
 
+       // Notify the worker to initialize a Baileys session for this account
+       const { wwebjsMessageQueue } = await import('@/lib/queue/bullmq');
+       await wwebjsMessageQueue.add('init-session', {
+         accountId,
+         action: 'initSession',
+         payload: {},
+       });
+
        return NextResponse.json({
          success: true,
          saved: true,

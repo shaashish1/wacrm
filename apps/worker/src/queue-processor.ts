@@ -43,6 +43,14 @@ export class QueueProcessor {
   private async processItem(job: Job) {
     const { accountId, action, payload } = job.data;
 
+    if (action === 'initSession') {
+      const status = await this.provider.getSessionStatus(accountId);
+      if (status === 'connected') return;
+      console.log(`[Queue] Initializing Baileys session for ${accountId}...`);
+      await this.provider.initializeSession(accountId, payload ?? {});
+      return;
+    }
+
     // We only process if the session is connected
     const status = await this.provider.getSessionStatus(accountId);
     if (status !== 'connected') {
