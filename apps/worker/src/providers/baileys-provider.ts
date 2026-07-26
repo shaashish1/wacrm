@@ -45,9 +45,10 @@ function encryptToken(text: string): string {
   const keyBuf = Buffer.from(ENCRYPTION_KEY, 'hex');
   const iv = crypto.randomBytes(GCM_IV_LENGTH);
   const cipher = crypto.createCipheriv('aes-256-gcm', keyBuf, iv);
-  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
   const tag = cipher.getAuthTag();
-  return `gcm:${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
+  return `${iv.toString('hex')}:${encrypted}:${tag.toString('hex')}`;
 }
 
 const MAX_MESSAGE_JID_CACHE = 10000;
