@@ -64,6 +64,7 @@ export class BaileysProvider implements IMessagingProvider {
   private reconnectAttempts: Map<string, number> = new Map();
   private messageJidMap: Map<string, string> = new Map();
   private messageJidKeys: string[] = [];
+  private sessionReadyAt: Map<string, number> = new Map();
   private supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   getProviderType(): ProviderType {
@@ -127,6 +128,9 @@ export class BaileysProvider implements IMessagingProvider {
         keys: makeCacheableSignalKeyStore(state.keys, logger),
       },
       generateHighQualityLinkPreview: true,
+      syncFullHistory: false,
+      shouldSyncHistoryMessage: () => false,
+      markOnlineOnConnect: false,
     });
 
     this.sockets.set(accountId, sock);
@@ -208,6 +212,7 @@ export class BaileysProvider implements IMessagingProvider {
         } else if (connection === 'open') {
           this.sessionStatuses.set(accountId, 'connected');
           this.reconnectAttempts.set(accountId, 0);
+          this.sessionReadyAt.set(accountId, Math.floor(Date.now() / 1000));
 
           const phoneJid = sock.user?.id || '';
           const phoneNumber = phoneJid.split(':')[0].split('@')[0];
@@ -247,10 +252,18 @@ export class BaileysProvider implements IMessagingProvider {
       if (events['messages.upsert']) {
         const upsert = events['messages.upsert'];
         if (upsert.type === 'notify') {
+          const readyAt = this.sessionReadyAt.get(accountId) || 0;
           for (const msg of upsert.messages) {
             if (!msg.message) continue;
             if (!msg.key.remoteJid || !isJidUser(msg.key.remoteJid)) continue;
             if (!this.globalInboundCallback) continue;
+            if (msg.key.fromMe) continue;
+
+            const msgTs = (msg.messageTimestamp as number) || 0;
+            if (readyAt && msgTs < readyAt - 30) {
+              console.log(`[Baileys] Skipping old message ${msg.key.id} (ts=${msgTs}, readyAt=${readyAt})`);
+              continue;
+            }
 
             const remoteJid = msg.key.remoteJid || '';
             if (msg.key.id) {
