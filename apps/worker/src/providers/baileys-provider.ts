@@ -22,6 +22,7 @@ import {
   isJidUser,
   makeCacheableSignalKeyStore,
   downloadMediaMessage,
+  Browsers,
 } from '@whiskeysockets/baileys';
 import { createClient } from '@supabase/supabase-js';
 import pino from 'pino';
@@ -114,10 +115,13 @@ export class BaileysProvider implements IMessagingProvider {
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
     const { version } = await fetchLatestBaileysVersion();
 
+    const usePairingCode = !!config.phoneNumber;
+
     const sock = makeWASocket({
       version,
       logger,
       printQRInTerminal: false,
+      browser: Browsers.ubuntu('WaCRM'),
       auth: {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, logger),
@@ -128,12 +132,33 @@ export class BaileysProvider implements IMessagingProvider {
     this.sockets.set(accountId, sock);
     this.sessionStatuses.set(accountId, 'qr_pending');
 
+    if (usePairingCode && !state.creds.registered) {
+      const phone = config.phoneNumber!.replace(/[^0-9]/g, '');
+      try {
+        const code = await sock.requestPairingCode(phone);
+        const formatted = code.match(/.{1,4}/g)?.join('-') || code;
+        console.log(`[Baileys] Pairing code for ${accountId}: ${formatted}`);
+        await this.supabase
+          .from('sessions')
+          .upsert({
+            account_id: accountId,
+            provider_type: 'wwebjs',
+            client_id: accountId,
+            status: 'qr_pending',
+            qr_code: null,
+            pairing_code: formatted,
+          }, { onConflict: 'account_id' });
+      } catch (err) {
+        console.error(`[Baileys] Failed to request pairing code for ${accountId}:`, err);
+      }
+    }
+
     sock.ev.process(async (events) => {
       if (events['connection.update']) {
         const update = events['connection.update'];
         const { connection, lastDisconnect, qr } = update;
 
-        if (qr) {
+        if (qr && !usePairingCode) {
           this.sessionStatuses.set(accountId, 'qr_pending');
           await this.supabase
             .from('sessions')
@@ -143,6 +168,7 @@ export class BaileysProvider implements IMessagingProvider {
               client_id: accountId,
               status: 'qr_pending',
               qr_code: qr,
+              pairing_code: null,
             }, { onConflict: 'account_id' });
 
           this.emitSessionEvent(accountId, { type: 'qr_refresh', qrData: qr });
@@ -194,6 +220,7 @@ export class BaileysProvider implements IMessagingProvider {
               client_id: accountId,
               status: 'READY',
               qr_code: null,
+              pairing_code: null,
               last_connected_at: new Date().toISOString(),
               phone_number: phoneNumber,
               session_data: { pushname: sock.user?.name || 'Connected' },

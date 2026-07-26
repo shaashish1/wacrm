@@ -194,7 +194,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { phone_number_id, waba_id, access_token, verify_token, pin, provider_type } = body
+    const { phone_number_id, waba_id, access_token, verify_token, pin, provider_type, pairing_phone } = body
 
     // Always save provider type to accounts
     if (provider_type) {
@@ -227,7 +227,7 @@ export async function POST(request: Request) {
        await wwebjsMessageQueue.add('init-session', {
          accountId,
          action: 'initSession',
-         payload: {},
+         payload: pairing_phone ? { phoneNumber: pairing_phone } : {},
        });
 
        return NextResponse.json({
