@@ -3,6 +3,8 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { Inter } from "next/font/google";
 import Script from "next/script";
+import { Suspense } from "react";
+import { PostHogProvider, PostHogPageView } from "@/components/providers/posthog-provider";
 import "./globals.css";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { ThemedToaster } from "@/components/themed-toaster";
@@ -108,12 +110,17 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-full bg-background text-foreground font-sans">
-        <NextIntlClientProvider messages={messages} locale={locale}>
-          <ThemeProvider>
-            {children}
-            <ThemedToaster />
-          </ThemeProvider>
-        </NextIntlClientProvider>
+        <Suspense fallback={null}>
+          <PostHogPageView />
+        </Suspense>
+        <PostHogProvider>
+          <NextIntlClientProvider messages={messages} locale={locale}>
+            <ThemeProvider>
+              {children}
+              <ThemedToaster />
+            </ThemeProvider>
+          </NextIntlClientProvider>
+        </PostHogProvider>
       </body>
     </html>
   );

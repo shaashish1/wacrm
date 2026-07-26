@@ -19,24 +19,16 @@ CREATE INDEX idx_send_queue_status ON send_queue(status, created_at) WHERE statu
 -- RLS
 ALTER TABLE send_queue ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their account send queue"
+CREATE POLICY "Users can view send queue of their accounts"
     ON send_queue FOR SELECT
-    USING (
-        account_id IN (
-            SELECT account_id FROM account_members WHERE user_id = auth.uid()
-        )
-    );
+    USING (is_account_member(account_id));
 
-CREATE POLICY "Users can manage their account send queue"
+CREATE POLICY "Users can manage send queue of their accounts"
     ON send_queue FOR ALL
-    USING (
-        account_id IN (
-            SELECT account_id FROM account_members WHERE user_id = auth.uid()
-        )
-    );
+    USING (is_account_member(account_id, 'admin'));
 
 -- Create updated_at trigger
 CREATE TRIGGER update_send_queue_updated_at
     BEFORE UPDATE ON send_queue
     FOR EACH ROW
-    EXECUTE FUNCTION update_modified_column();
+    EXECUTE FUNCTION update_updated_at_column();

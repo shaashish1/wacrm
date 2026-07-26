@@ -64,6 +64,7 @@ export interface InboundMessage {
   type: string;
   text?: string;
   mediaUrl?: string;
+  pushName?: string;
   timestamp: number;
 }
 

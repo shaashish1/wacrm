@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
-import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,6 @@ import { Loader2, CheckCircle2, XCircle, AlertTriangle, RefreshCcw, Info } from 
 import { toast } from 'sonner';
 
 export function WWebJSConfig() {
-  const t = useTranslations('Settings.whatsapp'); // We can reuse the translations where possible
   const supabase = createClient();
   const { accountId } = useAuth();
   

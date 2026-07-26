@@ -9,11 +9,14 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@wacrm/shared": "*",
-    "whatsapp-web.js": "^1.23.0",
+    "@wacrm/shared": "file:../../packages/shared",
+    "@whiskeysockets/baileys": "^6.7.9",
+    "pino": "^9.0.0",
     "qrcode-terminal": "^0.12.0",
     "@supabase/supabase-js": "^2.45.6",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "bullmq": "^5.7.8",
+    "ioredis": "^5.4.1"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

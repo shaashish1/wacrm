@@ -208,6 +208,20 @@ export async function POST(request: Request) {
     }
 
     if (provider_type === 'wwebjs') {
+       // Create a minimal whatsapp_config row so the webhook route can
+       // look up this account when inbound messages arrive from the worker.
+       // The worker will update phone_number_id once Baileys connects.
+       const placeholderToken = encrypt('baileys-local')
+       await supabaseAdmin()
+         .from('whatsapp_config')
+         .upsert({
+           account_id: accountId,
+           user_id: user.id,
+           phone_number_id: 'pending',
+           access_token: placeholderToken,
+           status: 'disconnected',
+         }, { onConflict: 'account_id' })
+
        return NextResponse.json({
          success: true,
          saved: true,

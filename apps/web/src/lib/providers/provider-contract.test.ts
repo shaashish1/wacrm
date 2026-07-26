@@ -1,68 +1,82 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CloudAPIProvider } from './cloud-api-provider';
-// To import WWebJSProvider, we would need to mock whatsapp-web.js as it uses Puppeteer which fails in unit tests
-// For now, we mock the module to verify contract without launching browsers.
-import { WWebJSProvider } from '../../../../worker/src/providers/wwebjs-provider';
 import type { IMessagingProvider } from '@wacrm/shared';
 
-vi.mock('whatsapp-web.js', () => ({
-  Client: class {
-    on() {}
-    initialize() {}
-    getState() { return 'CONNECTED'; }
-    destroy() {}
-    sendMessage() { return { id: { _serialized: 'mock-id' } }; }
-    isRegisteredUser() { return true; }
-    getProfilePicUrl() { return 'http://mock.url'; }
-  },
-  LocalAuth: class {},
-  MessageMedia: {
-    fromUrl: vi.fn(),
-  },
+vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://localhost:54321');
+vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'test-key');
+
+vi.mock('@whiskeysockets/baileys', () => ({
+  makeWASocket: vi.fn(),
+  useMultiFileAuthState: vi.fn(),
+  fetchLatestBaileysVersion: vi.fn(),
+  DisconnectReason: { loggedOut: 401 },
+  isJidUser: vi.fn(() => true),
+  makeCacheableSignalKeyStore: vi.fn((keys: unknown) => keys),
+  downloadMediaMessage: vi.fn(),
 }));
+
+const mockSupabaseClient = {
+  from: () => ({
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({ data: null, error: { message: 'not found' } }),
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    upsert: vi.fn(),
+    update: vi.fn().mockReturnThis(),
+    is: vi.fn().mockReturnThis(),
+  }),
+  rpc: vi.fn(),
+  storage: { from: () => ({ upload: vi.fn(), getPublicUrl: vi.fn() }) },
+};
+
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: () => mockSupabaseClient,
+}));
+
+vi.mock('../flows/admin-client', () => ({
+  supabaseAdmin: () => mockSupabaseClient,
+}));
+
+// Lazy import after mocks are set
+const { BaileysProvider } = await import('../../../../worker/src/providers/baileys-provider');
 
 describe('Provider Contract Parity', () => {
   it('CloudAPIProvider implements IMessagingProvider', () => {
     const provider: IMessagingProvider = new CloudAPIProvider();
-    expect(provider.getProviderType()).toBe('meta');
+    expect(provider.getProviderType()).toBe('cloud_api');
   });
 
-  it('WWebJSProvider implements IMessagingProvider', () => {
-    const provider: IMessagingProvider = new WWebJSProvider();
+  it('BaileysProvider implements IMessagingProvider', () => {
+    const provider: IMessagingProvider = new BaileysProvider();
     expect(provider.getProviderType()).toBe('wwebjs');
   });
 
   describe('Method behavior equivalence', () => {
     const metaProvider = new CloudAPIProvider();
-    const wwebjsProvider = new WWebJSProvider();
+    const baileysProvider = new BaileysProvider();
     const accountId = 'acc-123';
     const phone = '14155550123';
 
     it('Both handle sendTemplate', async () => {
-      // Cloud API should try to send (will throw because fetch fails in test, or we mock it)
-      // WWebJS should either shim it or throw "Not supported"
-      // The contract specifies they should have the same interface.
-      
       const metaPromise = metaProvider.sendTemplate(accountId, phone, 'hello', 'en_US');
-      const wwebjsPromise = wwebjsProvider.sendTemplate(accountId, phone, 'hello', 'en_US');
-      
-      // We expect them both to be Promises
-      expect(metaPromise).toBeInstanceOf(Promise);
-      expect(wwebjsPromise).toBeInstanceOf(Promise);
+      const baileysPromise = baileysProvider.sendTemplate(accountId, phone, 'hello', 'en_US');
 
-      // Verify they don't diverge in method signature
-      await expect(wwebjsPromise).rejects.toThrow(/not supported/i); // We expect this to fail currently per Phase 1 audit
+      expect(metaPromise).toBeInstanceOf(Promise);
+      expect(baileysPromise).toBeInstanceOf(Promise);
+
+      await expect(baileysPromise).rejects.toThrow(/not supported/i);
+      await expect(metaPromise).rejects.toThrow();
     });
 
     it('Both return identical capability shape', () => {
       const metaCap = metaProvider.getCapabilities();
-      const wwebjsCap = wwebjsProvider.getCapabilities();
-      
+      const baileysCap = baileysProvider.getCapabilities();
+
       expect(metaCap).toHaveProperty('templates');
-      expect(wwebjsCap).toHaveProperty('templates');
-      
+      expect(baileysCap).toHaveProperty('templates');
+
       expect(metaCap.templates).toBe(true);
-      expect(wwebjsCap.templates).toBe(false); // Valid difference, but shape matches
+      expect(baileysCap.templates).toBe(false);
     });
   });
 });

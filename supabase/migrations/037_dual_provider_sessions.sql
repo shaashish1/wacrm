@@ -33,23 +33,14 @@ ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view sessions of their accounts"
     ON sessions FOR SELECT
-    USING (
-        account_id IN (
-            SELECT account_id FROM account_members WHERE user_id = auth.uid()
-        )
-    );
+    USING (is_account_member(account_id));
 
 CREATE POLICY "Users can manage sessions of their accounts"
     ON sessions FOR ALL
-    USING (
-        account_id IN (
-            SELECT account_id FROM account_members WHERE user_id = auth.uid()
-            AND role IN ('owner', 'admin')
-        )
-    );
+    USING (is_account_member(account_id, 'admin'));
 
 -- Create updated_at trigger
 CREATE TRIGGER update_sessions_updated_at
     BEFORE UPDATE ON sessions
     FOR EACH ROW
-    EXECUTE FUNCTION update_modified_column();
+    EXECUTE FUNCTION update_updated_at_column();

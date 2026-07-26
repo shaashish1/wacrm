@@ -284,7 +284,12 @@ async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
 
       const config = configRows[0]
 
-      const decryptedAccessToken = decrypt(config.access_token)
+      let decryptedAccessToken = '';
+      try {
+        decryptedAccessToken = decrypt(config.access_token);
+      } catch {
+        // Baileys accounts use a placeholder token
+      }
 
       for (let i = 0; i < value.messages.length; i++) {
         const message = value.messages[i]
@@ -666,7 +671,7 @@ async function processMessage(
     .eq('sender_type', 'customer')
   const isFirstInboundMessage = (priorCustomerMsgCount ?? 0) === 0
 
-  const { error: msgError } = await supabaseAdmin().from('messages').insert({
+  const { error: msgError } = await supabaseAdmin().from('messages').upsert({
     conversation_id: conversation.id,
     sender_type: 'customer',
     content_type: contentType,
@@ -680,7 +685,7 @@ async function processMessage(
     // the column; null for every other content_type so existing inserts
     // behave identically.
     interactive_reply_id: interactiveReplyId,
-  })
+  }, { onConflict: 'message_id', ignoreDuplicates: true })
 
   if (msgError) {
     console.error('Error inserting message:', msgError)
@@ -849,6 +854,9 @@ async function parseMessageContent(
   const verifyAndBuildUrl = async (
     mediaId: string
   ): Promise<string | null> => {
+    if (mediaId.startsWith('http')) {
+      return mediaId;
+    }
     try {
       await getMediaUrl({ mediaId, accessToken })
       return `/api/whatsapp/media/${mediaId}`

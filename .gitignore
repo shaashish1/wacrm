@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -14,7 +14,7 @@
 /coverage
 
 # next.js
-/.next/
+.next/
 /out/
 
 # production
@@ -36,8 +36,21 @@ yarn-error.log*
 !.env.local.example
 !.env.example
 
+# build output
+dist/
+
 # vercel
 .vercel
+
+# supabase local
+supabase/.branches/
+supabase/.temp/
+
+# baileys sessions (auth state)
+sessions/
+
+# package-lock per workspace (root lock is kept)
+apps/*/package-lock.json
 
 # typescript
 *.tsbuildinfo

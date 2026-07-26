@@ -24,48 +24,34 @@ export class RateGovernor {
    * Returns a promise that resolves when it's safe to send, or throws if daily cap is reached.
    */
   async enforceLimits(accountId: string): Promise<void> {
-    const { data: session, error } = await this.supabase
-      .from('sessions')
-      .select('warming_started_at, warming_graduated_at, daily_new_contact_count, daily_count_reset_at')
-      .eq('account_id', accountId)
-      .maybeSingle();
+    const { data: count, error } = await this.supabase.rpc('increment_daily_count', {
+      p_account_id: accountId,
+    });
 
-    if (error || !session) {
-      // If no session track, we just allow it or throw.
+    if (error) {
+      console.error('[RateGovernor] increment_daily_count failed:', error);
       return;
     }
 
-    // 1. Enforce Daily Limit
-    const now = new Date();
-    const resetAt = session.daily_count_reset_at ? new Date(session.daily_count_reset_at) : new Date(0);
-    
-    // If we're past the reset day, reset the count
-    let currentCount = session.daily_new_contact_count || 0;
-    if (now.getTime() - resetAt.getTime() > 24 * 60 * 60 * 1000) {
-      currentCount = 0;
-      await this.supabase.from('sessions').update({
-        daily_new_contact_count: 0,
-        daily_count_reset_at: now.toISOString(),
-      }).eq('account_id', accountId);
-    }
-
-    if (currentCount >= this.DAILY_LIMIT) {
+    if (count > this.DAILY_LIMIT) {
       throw new Error('Daily message limit reached for this account.');
     }
 
-    // Increment the counter
-    await this.supabase.from('sessions').update({
-      daily_new_contact_count: currentCount + 1,
-    }).eq('account_id', accountId);
+    const { data: session } = await this.supabase
+      .from('sessions')
+      .select('warming_started_at, warming_graduated_at')
+      .eq('account_id', accountId)
+      .maybeSingle();
 
-    // 2. Warming Mode Jitter
-    const isWarming = session.warming_started_at && !session.warming_graduated_at;
-    const startedAt = session.warming_started_at ? new Date(session.warming_started_at).getTime() : 0;
-    
-    if (isWarming || (now.getTime() - startedAt < this.WARMING_PERIOD_MS)) {
-      // Apply jitter between MIN and MAX
-      const jitter = Math.floor(Math.random() * (this.WARMING_JITTER_MAX_MS - this.WARMING_JITTER_MIN_MS + 1) + this.WARMING_JITTER_MIN_MS);
-      await this.sleep(jitter);
+    if (session) {
+      const now = new Date();
+      const isWarming = session.warming_started_at && !session.warming_graduated_at;
+      const startedAt = session.warming_started_at ? new Date(session.warming_started_at).getTime() : 0;
+
+      if (isWarming || (startedAt > 0 && now.getTime() - startedAt < this.WARMING_PERIOD_MS)) {
+        const jitter = Math.floor(Math.random() * (this.WARMING_JITTER_MAX_MS - this.WARMING_JITTER_MIN_MS + 1) + this.WARMING_JITTER_MIN_MS);
+        await this.sleep(jitter);
+      }
     }
   }
 

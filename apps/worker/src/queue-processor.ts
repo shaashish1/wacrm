@@ -1,4 +1,4 @@
-import { WWebJSProvider } from './providers/wwebjs-provider';
+import { IMessagingProvider } from '@wacrm/shared';
 import { createClient } from '@supabase/supabase-js';
 import { RateGovernor } from './rate-governor';
 import { Worker, Job } from 'bullmq';
@@ -15,11 +15,11 @@ const connection = new IORedis(REDIS_URL, {
 });
 
 export class QueueProcessor {
-  private provider: WWebJSProvider;
+  private provider: IMessagingProvider;
   public rateGovernor: RateGovernor;
   private worker?: Worker;
 
-  constructor(provider: WWebJSProvider) {
+  constructor(provider: IMessagingProvider) {
     this.provider = provider;
     this.rateGovernor = new RateGovernor();
   }
@@ -82,6 +82,12 @@ export class QueueProcessor {
         .update({ message_id: result.messageId })
         .eq('message_id', job.id!) // The web app set the BullMQ job ID here
         .eq('account_id', accountId);
+    }
+  }
+
+  async stop() {
+    if (this.worker) {
+      await this.worker.close();
     }
   }
 }

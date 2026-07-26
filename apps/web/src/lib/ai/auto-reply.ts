@@ -98,6 +98,24 @@ export async function dispatchInboundToAiReply(
       return
     }
 
+    // Atomically claim a reply slot: the cap check + increment happen in
+    // one UPDATE, so concurrent inbounds can never overshoot the cap. If
+    // another inbound just took the last slot, `claimed` is false and we
+    // skip the send. (We consume a slot before the LLM call to prevent
+    // concurrent token burning race conditions.)
+    const { data: claimed, error: claimErr } = await db.rpc(
+      'claim_ai_reply_slot',
+      {
+        conversation_id: conversationId,
+        max_replies: config.autoReplyMaxPerConversation,
+      },
+    )
+    if (claimErr) {
+      console.error('[ai auto-reply] claim_ai_reply_slot failed:', claimErr)
+      return
+    }
+    if (claimed !== true) return // lost the per-conversation cap race
+
     // Ground the reply in the account's knowledge base (best-effort).
     const knowledge = await retrieveKnowledge(
       db,
@@ -157,27 +175,6 @@ export async function dispatchInboundToAiReply(
       return
     }
 
-    // Atomically claim a reply slot: the cap check + increment happen in
-    // one UPDATE, so concurrent inbounds can never overshoot the cap. If
-    // another inbound just took the last slot, `claimed` is false and we
-    // skip the send. (We consume a slot slightly before the send lands —
-    // fail-safe: under-reply rather than over-reply.)
-    const { data: claimed, error: claimErr } = await db.rpc(
-      'claim_ai_reply_slot',
-      {
-        conversation_id: conversationId,
-        max_replies: config.autoReplyMaxPerConversation,
-      },
-    )
-    if (claimErr) {
-      // A real error here (vs. losing the cap race) is almost always a
-      // deploy issue — e.g. `claim_ai_reply_slot` not EXECUTE-able by the
-      // service role, or the migration not applied. Log it loudly: a
-      // silent return makes "auto-reply never fires" undiagnosable.
-      console.error('[ai auto-reply] claim_ai_reply_slot failed:', claimErr)
-      return
-    }
-    if (claimed !== true) return // lost the per-conversation cap race
 
     await engineSendText({
       accountId,
