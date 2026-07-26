@@ -49,6 +49,10 @@ supabase/.temp/
 # baileys sessions (auth state)
 sessions/
 
+# deployment credentials
+.deploy-credentials
+vps.md
+
 # package-lock per workspace (root lock is kept)
 apps/*/package-lock.json
 
