@@ -19,7 +19,7 @@ CREATE POLICY "Account members can view wa_groups"
   USING (is_account_member(account_id));
 CREATE POLICY "Account admins can manage wa_groups"
   ON wa_groups FOR ALL
-  USING (is_account_member(account_id, 3));
+  USING (is_account_member(account_id, 'admin'));
 
 -- Group participants with phone numbers
 CREATE TABLE IF NOT EXISTS wa_group_participants (
@@ -40,7 +40,7 @@ CREATE POLICY "Account members can view wa_group_participants"
   USING (is_account_member(account_id));
 CREATE POLICY "Account admins can manage wa_group_participants"
   ON wa_group_participants FOR ALL
-  USING (is_account_member(account_id, 3));
+  USING (is_account_member(account_id, 'admin'));
 
 CREATE INDEX idx_wa_groups_account ON wa_groups(account_id);
 CREATE INDEX idx_wa_group_participants_group ON wa_group_participants(group_id);
