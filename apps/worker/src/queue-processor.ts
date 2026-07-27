@@ -66,7 +66,9 @@ export class QueueProcessor {
 
     switch (action) {
       case 'sendText':
+        console.log(`[Queue] Sending text to ${payload.to} for account ${accountId}`);
         result = await this.provider.sendText(accountId, payload.to, payload.body, payload.options);
+        console.log(`[Queue] Send result:`, result);
         break;
       case 'sendMedia':
         result = await this.provider.sendMedia(accountId, payload.to, payload.kind, payload.media, payload.caption, payload.options);
@@ -82,14 +84,16 @@ export class QueueProcessor {
         throw new Error(`Unknown action: ${action}`);
     }
 
-    // Update the messages table if it was a message send.
-    // The web app created a row with message_id = job.id. We need to update it to the real Meta message_id.
     if (result && result.messageId) {
-      await supabase
+      const { error: updateErr } = await supabase
         .from('messages')
         .update({ message_id: result.messageId })
-        .eq('message_id', job.id!) // The web app set the BullMQ job ID here
-        .eq('account_id', accountId);
+        .eq('message_id', job.id!);
+      if (updateErr) {
+        console.error(`[Queue] Failed to update message_id for job ${job.id}:`, updateErr.message);
+      } else {
+        console.log(`[Queue] Updated message_id: ${job.id} -> ${result.messageId}`);
+      }
     }
   }
 
