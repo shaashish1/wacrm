@@ -30,6 +30,7 @@ import {
   ArrowLeft,
   Loader2,
   Globe,
+  Download,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -69,6 +70,15 @@ export default function WaGroupsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
   const [importConfirmOpen, setImportConfirmOpen] = useState(false);
+
+  // Per-group import tracking
+  const [importingGroupId, setImportingGroupId] = useState<string | null>(
+    null,
+  );
+
+  // Import all groups
+  const [importingAll, setImportingAll] = useState(false);
+  const [importAllConfirmOpen, setImportAllConfirmOpen] = useState(false);
 
   const fetchGroups = useCallback(async () => {
     setLoading(true);
@@ -129,6 +139,54 @@ export default function WaGroupsPage() {
     setSelected(new Set());
   }
 
+  async function handleImportGroup(
+    groupId: string,
+    e?: React.MouseEvent,
+  ) {
+    e?.stopPropagation();
+    setImportingGroupId(groupId);
+    try {
+      const res = await fetch(
+        `/api/whatsapp/groups/${groupId}/import`,
+        { method: 'POST' },
+      );
+      if (!res.ok) throw new Error('Import failed');
+      const data = await res.json();
+      toast.success(
+        t('importSuccess', {
+          imported: data.imported,
+          skipped: data.skipped,
+        }),
+      );
+    } catch {
+      toast.error(t('importError'));
+    } finally {
+      setImportingGroupId(null);
+    }
+  }
+
+  async function handleImportAll() {
+    setImportingAll(true);
+    try {
+      const res = await fetch('/api/whatsapp/groups/import-all', {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error('Import failed');
+      const data = await res.json();
+      toast.success(
+        t('importSuccess', {
+          imported: data.imported,
+          skipped: data.skipped,
+        }),
+      );
+    } catch {
+      toast.error(t('importError'));
+    } finally {
+      setImportingAll(false);
+      setImportAllConfirmOpen(false);
+    }
+  }
+
   const importableParticipants = participants.filter((p) => p.phone);
   const filteredParticipants = participants.filter((p) => {
     if (!participantSearch.trim()) return true;
@@ -161,7 +219,7 @@ export default function WaGroupsPage() {
     });
   }
 
-  async function handleImport() {
+  async function handleImportSelected() {
     setImporting(true);
     try {
       const res = await fetch('/api/whatsapp/groups/import-contacts', {
@@ -190,7 +248,8 @@ export default function WaGroupsPage() {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
-      g.subject?.toLowerCase().includes(q) || g.jid.toLowerCase().includes(q)
+      g.subject?.toLowerCase().includes(q) ||
+      g.jid.toLowerCase().includes(q)
     );
   });
 
@@ -219,15 +278,35 @@ export default function WaGroupsPage() {
               </p>
             </div>
           </div>
-          {selected.size > 0 && (
+          <div className="flex items-center gap-2">
             <Button
-              onClick={() => setImportConfirmOpen(true)}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() =>
+                handleImportGroup(selectedGroup.id)
+              }
+              disabled={
+                importingGroupId === selectedGroup.id ||
+                importableParticipants.length === 0
+              }
+              variant="outline"
+              className="border-border text-muted-foreground hover:bg-muted"
             >
-              <UserPlus className="size-4" />
-              {t('importSelected', { count: selected.size })}
+              {importingGroupId === selectedGroup.id ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Download className="size-4" />
+              )}
+              {t('importAllFromGroup')}
             </Button>
-          )}
+            {selected.size > 0 && (
+              <Button
+                onClick={() => setImportConfirmOpen(true)}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <UserPlus className="size-4" />
+                {t('importSelected', { count: selected.size })}
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="relative w-full max-w-sm">
@@ -258,7 +337,7 @@ export default function WaGroupsPage() {
                 <TableHead className="text-muted-foreground">
                   {t('colPhone')}
                 </TableHead>
-                <TableHead className="text-muted-foreground hidden sm:table-cell">
+                <TableHead className="hidden text-muted-foreground sm:table-cell">
                   {t('colRole')}
                 </TableHead>
               </TableRow>
@@ -340,7 +419,7 @@ export default function WaGroupsPage() {
                 {t('cancel')}
               </Button>
               <Button
-                onClick={handleImport}
+                onClick={handleImportSelected}
                 disabled={importing}
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
@@ -366,18 +445,35 @@ export default function WaGroupsPage() {
             {t('subtitle')}
           </p>
         </div>
-        <Button
-          onClick={handleSync}
-          disabled={syncing}
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          {syncing ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <RefreshCw className="size-4" />
+        <div className="flex items-center gap-2">
+          {groups.length > 0 && (
+            <Button
+              onClick={() => setImportAllConfirmOpen(true)}
+              disabled={importingAll}
+              variant="outline"
+              className="border-border text-muted-foreground hover:bg-muted"
+            >
+              {importingAll ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Download className="size-4" />
+              )}
+              {t('importAllBtn')}
+            </Button>
           )}
-          {t('syncBtn')}
-        </Button>
+          <Button
+            onClick={handleSync}
+            disabled={syncing}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            {syncing ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <RefreshCw className="size-4" />
+            )}
+            {t('syncBtn')}
+          </Button>
+        </div>
       </div>
 
       <div className="relative w-full max-w-sm">
@@ -406,7 +502,7 @@ export default function WaGroupsPage() {
               <TableHead className="hidden text-muted-foreground md:table-cell">
                 {t('colSyncedAt')}
               </TableHead>
-              <TableHead className="w-10 text-muted-foreground" />
+              <TableHead className="w-28 text-muted-foreground" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -487,7 +583,25 @@ export default function WaGroupsPage() {
                       : '-'}
                   </TableCell>
                   <TableCell>
-                    <ChevronRight className="size-4 text-muted-foreground" />
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) =>
+                          handleImportGroup(group.id, e)
+                        }
+                        disabled={importingGroupId === group.id}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {importingGroupId === group.id ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <UserPlus className="size-3.5" />
+                        )}
+                        {t('importBtn')}
+                      </Button>
+                      <ChevronRight className="size-4 text-muted-foreground" />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -495,6 +609,42 @@ export default function WaGroupsPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Import All Confirmation */}
+      <Dialog
+        open={importAllConfirmOpen}
+        onOpenChange={setImportAllConfirmOpen}
+      >
+        <DialogContent className="border-border bg-popover text-popover-foreground sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-popover-foreground">
+              {t('importAllTitle')}
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              {t('importAllDesc', { count: groups.length })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="border-border bg-popover">
+            <Button
+              variant="outline"
+              onClick={() => setImportAllConfirmOpen(false)}
+              className="border-border text-muted-foreground hover:bg-muted"
+            >
+              {t('cancel')}
+            </Button>
+            <Button
+              onClick={handleImportAll}
+              disabled={importingAll}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {importingAll && (
+                <Loader2 className="size-4 animate-spin" />
+              )}
+              {t('importAllBtn')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

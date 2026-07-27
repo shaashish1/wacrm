@@ -1730,6 +1730,10 @@
     "importBtn": "가져오기",
     "cancel": "취소",
     "importSuccess": "{imported}명 가져옴, {skipped}명 이미 존재.",
-    "importError": "연락처를 가져오지 못했습니다."
+    "importError": "연락처를 가져오지 못했습니다.",
+    "importAllBtn": "전체 연락처로 가져오기",
+    "importAllTitle": "모든 그룹 가져오기",
+    "importAllDesc": "{count}개 그룹의 모든 고유 참가자를 CRM 연락처로 가져옵니다. 기존 전화번호는 건너뜁니다.",
+    "importAllFromGroup": "전체 가져오기"
   }
 }

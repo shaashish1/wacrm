@@ -1732,6 +1732,10 @@
     "importBtn": "Import",
     "cancel": "Cancel",
     "importSuccess": "{imported} imported, {skipped} already existed.",
-    "importError": "Failed to import contacts."
+    "importError": "Failed to import contacts.",
+    "importAllBtn": "Import All to Contacts",
+    "importAllTitle": "Import All Groups",
+    "importAllDesc": "Import all unique participants from {count} {count, plural, =1 {group} other {groups}} as CRM contacts. Existing phone numbers will be skipped.",
+    "importAllFromGroup": "Import All"
   }
 }
