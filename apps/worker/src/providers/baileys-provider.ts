@@ -637,4 +637,68 @@ export class BaileysProvider implements IMessagingProvider {
       return null;
     }
   }
+
+  async syncGroups(accountId: string): Promise<{ groupCount: number; participantCount: number }> {
+    const sock = this.getSocket(accountId);
+    console.log(`[Baileys] Syncing groups for ${accountId}...`);
+
+    const groups = await sock.groupFetchAllParticipating();
+    const entries = Object.values(groups);
+
+    let participantCount = 0;
+
+    for (const group of entries) {
+      const phone = (jid: string) => jid.split('@')[0].split(':')[0];
+
+      await this.supabase.from('wa_groups').upsert({
+        account_id: accountId,
+        jid: group.id,
+        subject: group.subject || null,
+        description: group.desc || null,
+        owner_jid: group.owner || null,
+        size: group.participants?.length || group.size || 0,
+        creation_ts: group.creation || null,
+        is_community: !!group.isCommunity,
+        synced_at: new Date().toISOString(),
+      }, { onConflict: 'account_id,jid' });
+
+      const { data: groupRow } = await this.supabase
+        .from('wa_groups')
+        .select('id')
+        .eq('account_id', accountId)
+        .eq('jid', group.id)
+        .single();
+
+      if (!groupRow) continue;
+
+      await this.supabase
+        .from('wa_group_participants')
+        .delete()
+        .eq('group_id', groupRow.id);
+
+      if (group.participants?.length) {
+        const rows = group.participants.map(p => ({
+          group_id: groupRow.id,
+          account_id: accountId,
+          jid: p.id,
+          phone: phone(p.id),
+          display_name: p.notify || p.name || null,
+          is_admin: p.admin === 'admin' || p.admin === 'superadmin',
+          is_super_admin: p.admin === 'superadmin',
+        }));
+
+        const CHUNK = 200;
+        for (let i = 0; i < rows.length; i += CHUNK) {
+          await this.supabase
+            .from('wa_group_participants')
+            .insert(rows.slice(i, i + CHUNK));
+        }
+
+        participantCount += rows.length;
+      }
+    }
+
+    console.log(`[Baileys] Synced ${entries.length} groups, ${participantCount} participants for ${accountId}`);
+    return { groupCount: entries.length, participantCount };
+  }
 }

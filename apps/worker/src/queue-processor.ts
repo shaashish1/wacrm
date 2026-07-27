@@ -51,6 +51,13 @@ export class QueueProcessor {
       return;
     }
 
+    if (action === 'syncGroups') {
+      console.log(`[Queue] Syncing WhatsApp groups for ${accountId}...`);
+      const result = await (this.provider as any).syncGroups(accountId);
+      console.log(`[Queue] Group sync complete:`, result);
+      return;
+    }
+
     // We only process if the session is connected
     const status = await this.provider.getSessionStatus(accountId);
     if (status !== 'connected') {
