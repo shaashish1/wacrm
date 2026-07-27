@@ -131,7 +131,12 @@ export class BaileysProvider implements IMessagingProvider {
       },
       generateHighQualityLinkPreview: true,
       syncFullHistory: false,
-      shouldSyncHistoryMessage: () => false,
+      shouldSyncHistoryMessage: (msg: any) => {
+        const type = msg?.syncType;
+        // 0=INITIAL_BOOTSTRAP (contacts+chats), 4=PUSH_NAME (contact names)
+        // Block 2=FULL and 3=RECENT to avoid old message floods
+        return type === 0 || type === 4;
+      },
       markOnlineOnConnect: false,
     });
 
