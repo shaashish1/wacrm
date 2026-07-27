@@ -66,6 +66,7 @@ export class BaileysProvider implements IMessagingProvider {
   private messageJidMap: Map<string, string> = new Map();
   private messageJidKeys: string[] = [];
   private sessionReadyAt: Map<string, number> = new Map();
+  private lidToPhone: Map<string, string> = new Map();
   private supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   getProviderType(): ProviderType {
@@ -248,6 +249,21 @@ export class BaileysProvider implements IMessagingProvider {
 
       if (events['creds.update']) {
         await saveCreds();
+      }
+
+      for (const evName of ['contacts.upsert', 'contacts.update'] as const) {
+        if (events[evName]) {
+          for (const contact of events[evName]) {
+            const c = contact as any;
+            const lidRaw = c.lid || (c.id?.endsWith?.('@lid') ? c.id : null);
+            const phoneJid = c.jid || (isJidUser(c.id) ? c.id : null);
+            if (lidRaw && phoneJid) {
+              const lid = lidRaw.split('@')[0].split(':')[0];
+              const phone = phoneJid.split('@')[0].split(':')[0];
+              this.lidToPhone.set(lid, phone);
+            }
+          }
+        }
       }
 
       if (events['messages.upsert']) {
@@ -648,7 +664,12 @@ export class BaileysProvider implements IMessagingProvider {
     let participantCount = 0;
 
     for (const group of entries) {
-      const phone = (jid: string) => jid.split('@')[0].split(':')[0];
+      const resolvePhone = (jid: string): string | null => {
+        const raw = jid.split('@')[0].split(':')[0];
+        if (jid.endsWith('@s.whatsapp.net')) return raw;
+        if (jid.endsWith('@lid')) return this.lidToPhone.get(raw) || null;
+        return null;
+      };
 
       await this.supabase.from('wa_groups').upsert({
         account_id: accountId,
@@ -681,7 +702,7 @@ export class BaileysProvider implements IMessagingProvider {
           group_id: groupRow.id,
           account_id: accountId,
           jid: p.id,
-          phone: phone(p.id),
+          phone: resolvePhone(p.id),
           display_name: p.notify || p.name || null,
           is_admin: p.admin === 'admin' || p.admin === 'superadmin',
           is_super_admin: p.admin === 'superadmin',
@@ -698,7 +719,7 @@ export class BaileysProvider implements IMessagingProvider {
       }
     }
 
-    console.log(`[Baileys] Synced ${entries.length} groups, ${participantCount} participants for ${accountId}`);
+    console.log(`[Baileys] Synced ${entries.length} groups, ${participantCount} participants for ${accountId} (LID map size: ${this.lidToPhone.size})`);
     return { groupCount: entries.length, participantCount };
   }
 }
