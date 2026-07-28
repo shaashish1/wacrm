@@ -44,7 +44,7 @@ BEGIN
     SELECT id INTO v_account_id FROM public.accounts WHERE owner_user_id = v_user_id LIMIT 1;
   END IF;
 
-  -- 3. Update or ensure profile row with valid account_id
+  -- 3. Update or ensure profile row with valid account_id & account_role
   IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE user_id = v_user_id) THEN
     INSERT INTO public.profiles (user_id, full_name, email, role, account_id, account_role)
     VALUES (v_user_id, 'Admin User', 'admin@wacrm.itgyani.com', 'admin', v_account_id, 'owner');
@@ -55,9 +55,4 @@ BEGIN
         role = 'admin'
     WHERE user_id = v_user_id;
   END IF;
-
-  -- 4. Ensure account membership exists
-  INSERT INTO public.account_members (account_id, user_id, role)
-  VALUES (v_account_id, v_user_id, 'owner')
-  ON CONFLICT (account_id, user_id) DO NOTHING;
 END $$;
