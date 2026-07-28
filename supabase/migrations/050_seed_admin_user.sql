@@ -6,14 +6,7 @@ DECLARE
   v_user_id UUID := '00000000-0000-0000-0000-000000000001';
   v_account_id UUID := '00000000-0000-0000-0000-000000000002';
 BEGIN
-  -- 1. Create account first so account_id exists
-  IF NOT EXISTS (SELECT 1 FROM public.accounts WHERE id = v_account_id) THEN
-    INSERT INTO public.accounts (id, name, owner_user_id)
-    VALUES (v_account_id, 'Admin Workspace', v_user_id)
-    ON CONFLICT (id) DO NOTHING;
-  END IF;
-
-  -- 2. Insert into auth.users if admin user doesn't already exist
+  -- 1. Create auth.users row FIRST (so accounts.owner_user_id FK constraint passes)
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'admin@wacrm.itgyani.com') THEN
     INSERT INTO auth.users (
       id,
@@ -42,10 +35,24 @@ BEGIN
     );
   END IF;
 
-  -- 3. Ensure profile exists with valid account_id
-  INSERT INTO public.profiles (user_id, full_name, email, role, account_id, account_role)
-  VALUES (v_user_id, 'Admin User', 'admin@wacrm.itgyani.com', 'admin', v_account_id, 'owner')
-  ON CONFLICT (user_id) DO UPDATE SET account_id = COALESCE(profiles.account_id, EXCLUDED.account_id), role = 'admin';
+  -- 2. Create account row SECOND (now that auth.users row exists)
+  IF NOT EXISTS (SELECT 1 FROM public.accounts WHERE id = v_account_id) THEN
+    INSERT INTO public.accounts (id, name, owner_user_id)
+    VALUES (v_account_id, 'Admin Workspace', v_user_id)
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+
+  -- 3. Update or ensure profile row with valid account_id
+  IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE user_id = v_user_id) THEN
+    INSERT INTO public.profiles (user_id, full_name, email, role, account_id, account_role)
+    VALUES (v_user_id, 'Admin User', 'admin@wacrm.itgyani.com', 'admin', v_account_id, 'owner');
+  ELSE
+    UPDATE public.profiles
+    SET account_id = COALESCE(account_id, v_account_id),
+        account_role = COALESCE(account_role, 'owner'),
+        role = 'admin'
+    WHERE user_id = v_user_id;
+  END IF;
 
   -- 4. Ensure account membership exists
   INSERT INTO public.account_members (account_id, user_id, role)
