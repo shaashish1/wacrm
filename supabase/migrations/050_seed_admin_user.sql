@@ -36,10 +36,12 @@ BEGIN
   END IF;
 
   -- 2. Create account row SECOND (now that auth.users row exists)
-  IF NOT EXISTS (SELECT 1 FROM public.accounts WHERE id = v_account_id) THEN
+  IF NOT EXISTS (SELECT 1 FROM public.accounts WHERE owner_user_id = v_user_id) THEN
     INSERT INTO public.accounts (id, name, owner_user_id)
     VALUES (v_account_id, 'Admin Workspace', v_user_id)
     ON CONFLICT (id) DO NOTHING;
+  ELSE
+    SELECT id INTO v_account_id FROM public.accounts WHERE owner_user_id = v_user_id LIMIT 1;
   END IF;
 
   -- 3. Update or ensure profile row with valid account_id
