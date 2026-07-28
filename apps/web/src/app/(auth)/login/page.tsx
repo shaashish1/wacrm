@@ -52,13 +52,35 @@ function LoginPageInner() {
 
     const loginEmail = email.includes("@") ? email : `${email}@wacrm.itgyani.com`;
 
-    const { error } = await supabase.auth.signInWithPassword({
+    // 1. Attempt sign in
+    let { error: signInError } = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password,
     });
 
-    if (error) {
-      setError(error.message);
+    // 2. If invalid credentials or unconfirmed, auto-create and retry
+    if (signInError) {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: loginEmail,
+        password,
+        options: {
+          data: {
+            full_name: email.split("@")[0] || "Admin",
+          },
+        },
+      });
+
+      if (!signUpError) {
+        const retry = await supabase.auth.signInWithPassword({
+          email: loginEmail,
+          password,
+        });
+        signInError = retry.error;
+      }
+    }
+
+    if (signInError) {
+      setError(signInError.message);
       setLoading(false);
       return;
     }
