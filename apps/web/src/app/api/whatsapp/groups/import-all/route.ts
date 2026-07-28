@@ -7,54 +7,69 @@ export async function POST() {
     const ctx = await requireRole('agent');
     const admin = supabaseAdmin();
 
-    const { data: participants, error: fetchErr } = await admin
-      .from('wa_group_participants')
-      .select('phone, display_name')
-      .eq('account_id', ctx.accountId)
-      .not('phone', 'is', null);
-
-    if (fetchErr) {
-      console.error('[import-all]', fetchErr);
-      return NextResponse.json(
-        { error: 'Failed to fetch participants' },
-        { status: 500 },
-      );
+    let allParticipants: { phone: string; display_name: string | null }[] =
+      [];
+    let offset = 0;
+    const PAGE = 1000;
+    while (true) {
+      const { data, error } = await admin
+        .from('wa_group_participants')
+        .select('phone, display_name')
+        .eq('account_id', ctx.accountId)
+        .not('phone', 'is', null)
+        .range(offset, offset + PAGE - 1);
+      if (error) {
+        console.error('[import-all] fetch error:', error);
+        return NextResponse.json(
+          { error: 'Failed to fetch participants' },
+          { status: 500 },
+        );
+      }
+      if (!data || data.length === 0) break;
+      allParticipants = allParticipants.concat(data);
+      if (data.length < PAGE) break;
+      offset += PAGE;
     }
 
-    if (!participants || participants.length === 0) {
+    if (allParticipants.length === 0) {
       return NextResponse.json({ imported: 0, skipped: 0 });
     }
 
-    const uniqueByPhone = new Map<
+    const normalize = (ph: string) => ph.replace(/\D/g, '');
+    const uniqueByNorm = new Map<
       string,
       { phone: string; display_name: string | null }
     >();
-    for (const p of participants) {
-      if (p.phone && !uniqueByPhone.has(p.phone)) {
-        uniqueByPhone.set(p.phone, {
-          phone: p.phone,
-          display_name: p.display_name,
-        });
+    for (const p of allParticipants) {
+      if (p.phone) {
+        const norm = normalize(p.phone);
+        if (!uniqueByNorm.has(norm)) {
+          uniqueByNorm.set(norm, {
+            phone: p.phone,
+            display_name: p.display_name,
+          });
+        }
       }
     }
 
-    const allPhones = [...uniqueByPhone.keys()];
-
-    const existingPhones = new Set<string>();
+    const existingNorm = new Set<string>();
+    const allRawPhones = [...uniqueByNorm.values()].map((p) => p.phone);
     const QUERY_CHUNK = 1000;
-    for (let i = 0; i < allPhones.length; i += QUERY_CHUNK) {
-      const chunk = allPhones.slice(i, i + QUERY_CHUNK);
+    for (let i = 0; i < allRawPhones.length; i += QUERY_CHUNK) {
+      const chunk = allRawPhones.slice(i, i + QUERY_CHUNK);
       const { data: existing } = await admin
         .from('contacts')
         .select('phone')
         .eq('account_id', ctx.accountId)
         .in('phone', chunk);
-      (existing ?? []).forEach((c) => existingPhones.add(c.phone));
+      (existing ?? []).forEach((c) =>
+        existingNorm.add(normalize(c.phone)),
+      );
     }
 
-    const toInsert = [...uniqueByPhone.values()]
-      .filter((p) => !existingPhones.has(p.phone))
-      .map((p) => ({
+    const toInsert = [...uniqueByNorm.entries()]
+      .filter(([norm]) => !existingNorm.has(norm))
+      .map(([, p]) => ({
         phone: p.phone,
         name: p.display_name || null,
         account_id: ctx.accountId,
@@ -62,14 +77,21 @@ export async function POST() {
       }));
 
     let imported = 0;
-    const INSERT_CHUNK = 500;
+    let dupeSkipped = 0;
+    const INSERT_CHUNK = 100;
     for (let i = 0; i < toInsert.length; i += INSERT_CHUNK) {
       const chunk = toInsert.slice(i, i + INSERT_CHUNK);
       const { error: insertErr } = await admin
         .from('contacts')
         .insert(chunk);
       if (insertErr) {
-        console.error('[import-all chunk]', insertErr);
+        for (const row of chunk) {
+          const { error: singleErr } = await admin
+            .from('contacts')
+            .insert(row);
+          if (singleErr) dupeSkipped++;
+          else imported++;
+        }
       } else {
         imported += chunk.length;
       }
@@ -77,7 +99,7 @@ export async function POST() {
 
     return NextResponse.json({
       imported,
-      skipped: uniqueByPhone.size - toInsert.length,
+      skipped: existingNorm.size + dupeSkipped,
     });
   } catch (err) {
     return toErrorResponse(err);

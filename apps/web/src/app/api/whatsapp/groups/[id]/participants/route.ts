@@ -17,7 +17,10 @@ export async function GET(
       .maybeSingle();
 
     if (!group) {
-      return NextResponse.json({ error: 'Group not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Group not found' },
+        { status: 404 },
+      );
     }
 
     const { data, error } = await ctx.supabase
@@ -34,7 +37,33 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ participants: data ?? [] });
+    const participants = data ?? [];
+    const phones = participants
+      .map((p) => p.phone)
+      .filter(Boolean) as string[];
+
+    const existingPhones = new Set<string>();
+    if (phones.length > 0) {
+      const CHUNK = 1000;
+      for (let i = 0; i < phones.length; i += CHUNK) {
+        const chunk = phones.slice(i, i + CHUNK);
+        const { data: existing } = await ctx.supabase
+          .from('contacts')
+          .select('phone')
+          .eq('account_id', ctx.accountId)
+          .in('phone', chunk);
+        (existing ?? []).forEach((c) =>
+          existingPhones.add(c.phone),
+        );
+      }
+    }
+
+    const enriched = participants.map((p) => ({
+      ...p,
+      in_crm: p.phone ? existingPhones.has(p.phone) : false,
+    }));
+
+    return NextResponse.json({ participants: enriched });
   } catch (err) {
     return toErrorResponse(err);
   }

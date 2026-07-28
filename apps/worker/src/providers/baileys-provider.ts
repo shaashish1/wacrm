@@ -271,11 +271,33 @@ export class BaileysProvider implements IMessagingProvider {
         }
       }
 
+      if (events['chats.phoneNumberShare' as keyof typeof events]) {
+        const share = events['chats.phoneNumberShare' as keyof typeof events] as any;
+        if (share?.lid && share?.jid) {
+          const lid = share.lid.split('@')[0].split(':')[0];
+          const phone = share.jid.split('@')[0].split(':')[0];
+          this.lidToPhone.set(lid, phone);
+        }
+      }
+
       if (events['messages.upsert']) {
         const upsert = events['messages.upsert'];
         if (upsert.type === 'notify') {
           const readyAt = this.sessionReadyAt.get(accountId) || 0;
           for (const msg of upsert.messages) {
+            // Build LID-to-phone map from message key attributes
+            const key = msg.key as any;
+            if (key.senderLid && key.senderPn) {
+              const lid = key.senderLid.split('@')[0].split(':')[0];
+              const phone = key.senderPn.split('@')[0].split(':')[0];
+              this.lidToPhone.set(lid, phone);
+            }
+            if (key.participantLid && key.participantPn) {
+              const lid = key.participantLid.split('@')[0].split(':')[0];
+              const phone = key.participantPn.split('@')[0].split(':')[0];
+              this.lidToPhone.set(lid, phone);
+            }
+
             if (!msg.message) continue;
             if (!msg.key.remoteJid || !isJidUser(msg.key.remoteJid)) continue;
             if (!this.globalInboundCallback) continue;
@@ -667,14 +689,41 @@ export class BaileysProvider implements IMessagingProvider {
     const entries = Object.values(groups);
 
     let participantCount = 0;
+    let phonesResolved = 0;
 
     for (const group of entries) {
-      const resolvePhone = (jid: string): string | null => {
-        const raw = jid.split('@')[0].split(':')[0];
-        if (jid.endsWith('@s.whatsapp.net')) return raw;
-        if (jid.endsWith('@lid')) return this.lidToPhone.get(raw) || null;
-        return null;
-      };
+      const g = group as any;
+      let groupPhonesResolved = 0;
+
+      const participantRows: any[] = [];
+      if (group.participants?.length) {
+        for (const p of group.participants) {
+          const part = p as any;
+          let phone: string | null = null;
+
+          if (part.jid && part.jid.endsWith('@s.whatsapp.net')) {
+            phone = part.jid.split('@')[0].split(':')[0];
+          } else if (part.id.endsWith('@s.whatsapp.net')) {
+            phone = part.id.split('@')[0].split(':')[0];
+          } else if (part.id.endsWith('@lid')) {
+            const lidRaw = part.id.split('@')[0].split(':')[0];
+            phone = this.lidToPhone.get(lidRaw) || null;
+          }
+
+          if (phone) {
+            phonesResolved++;
+            groupPhonesResolved++;
+          }
+
+          participantRows.push({
+            jid: part.id,
+            phone,
+            display_name: part.notify || part.name || null,
+            is_admin: part.admin === 'admin' || part.admin === 'superadmin',
+            is_super_admin: part.admin === 'superadmin',
+          });
+        }
+      }
 
       await this.supabase.from('wa_groups').upsert({
         account_id: accountId,
@@ -685,6 +734,14 @@ export class BaileysProvider implements IMessagingProvider {
         size: group.participants?.length || group.size || 0,
         creation_ts: group.creation || null,
         is_community: !!group.isCommunity,
+        restrict: !!g.restrict,
+        announce: !!g.announce,
+        member_add_mode: g.memberAddMode !== false,
+        join_approval_mode: !!g.joinApprovalMode,
+        is_community_announce: !!g.isCommunityAnnounce,
+        linked_parent: g.linkedParent || null,
+        ephemeral_duration: g.ephemeralDuration || 0,
+        participants_with_phone: groupPhonesResolved,
         synced_at: new Date().toISOString(),
       }, { onConflict: 'account_id,jid' });
 
@@ -702,15 +759,11 @@ export class BaileysProvider implements IMessagingProvider {
         .delete()
         .eq('group_id', groupRow.id);
 
-      if (group.participants?.length) {
-        const rows = group.participants.map(p => ({
+      if (participantRows.length) {
+        const rows = participantRows.map(r => ({
+          ...r,
           group_id: groupRow.id,
           account_id: accountId,
-          jid: p.id,
-          phone: resolvePhone(p.id),
-          display_name: p.notify || p.name || null,
-          is_admin: p.admin === 'admin' || p.admin === 'superadmin',
-          is_super_admin: p.admin === 'superadmin',
         }));
 
         const CHUNK = 200;
@@ -724,7 +777,7 @@ export class BaileysProvider implements IMessagingProvider {
       }
     }
 
-    console.log(`[Baileys] Synced ${entries.length} groups, ${participantCount} participants for ${accountId} (LID map size: ${this.lidToPhone.size})`);
+    console.log(`[Baileys] Synced ${entries.length} groups, ${participantCount} participants for ${accountId} (phones resolved: ${phonesResolved}/${participantCount}, LID map: ${this.lidToPhone.size})`);
     return { groupCount: entries.length, participantCount };
   }
 }

@@ -36,23 +36,6 @@ export class RateGovernor {
     if (count > this.DAILY_LIMIT) {
       throw new Error('Daily message limit reached for this account.');
     }
-
-    const { data: session } = await this.supabase
-      .from('sessions')
-      .select('warming_started_at, warming_graduated_at')
-      .eq('account_id', accountId)
-      .maybeSingle();
-
-    if (session) {
-      const now = new Date();
-      const isWarming = session.warming_started_at && !session.warming_graduated_at;
-      const startedAt = session.warming_started_at ? new Date(session.warming_started_at).getTime() : 0;
-
-      if (isWarming || (startedAt > 0 && now.getTime() - startedAt < this.WARMING_PERIOD_MS)) {
-        const jitter = Math.floor(Math.random() * (this.WARMING_JITTER_MAX_MS - this.WARMING_JITTER_MIN_MS + 1) + this.WARMING_JITTER_MIN_MS);
-        await this.sleep(jitter);
-      }
-    }
   }
 
   private sleep(ms: number): Promise<void> {
