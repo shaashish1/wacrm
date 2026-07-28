@@ -27,7 +27,7 @@ if command -v apt-get &>/dev/null; then
     apt-get update -y
     apt-get install -y curl wget git build-essential ca-certificates gnupg lsb-release
 elif command -v yum &>/dev/null; then
-    yum install -y curl wget git gcc-c++ make ca-certificates
+    yum install -y curl wget git gcc-c++ make ca-certificates 2>/dev/null || true
 else
     echo "ERROR: Unsupported package manager. Need apt or yum."
     exit 1
