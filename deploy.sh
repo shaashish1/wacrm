@@ -73,13 +73,17 @@ npm install -g pm2
 echo ""
 echo "[4/10] Installing Redis..."
 
-if ! command -v redis-server &>/dev/null; then
-    apt-get install -y redis-server
-    systemctl enable redis-server
-    systemctl start redis-server
+if ! command -v redis-server &>/dev/null && ! command -v redis-cli &>/dev/null; then
+    if command -v apt-get &>/dev/null; then
+        apt-get install -y redis-server
+    else
+        yum install -y redis 2>/dev/null || true
+    fi
+    systemctl enable redis 2>/dev/null || systemctl enable redis-server 2>/dev/null || true
+    systemctl start redis 2>/dev/null || systemctl start redis-server 2>/dev/null || true
 else
     echo "Redis already installed"
-    systemctl start redis-server 2>/dev/null || true
+    systemctl start redis 2>/dev/null || systemctl start redis-server 2>/dev/null || true
 fi
 
 # ---------------------------------------------------------
@@ -88,9 +92,13 @@ fi
 echo ""
 echo "[5/10] Installing Nginx and Certbot..."
 
-apt-get install -y nginx certbot python3-certbot-nginx
-systemctl enable nginx
-systemctl start nginx
+if command -v apt-get &>/dev/null; then
+    apt-get install -y nginx certbot python3-certbot-nginx 2>/dev/null || true
+elif command -v yum &>/dev/null; then
+    yum install -y nginx certbot python3-certbot-nginx 2>/dev/null || dnf install -y nginx certbot python3-certbot-nginx 2>/dev/null || true
+fi
+systemctl enable nginx 2>/dev/null || true
+systemctl start nginx 2>/dev/null || true
 
 # ---------------------------------------------------------
 # 6. Set up Supabase (self-hosted via Docker)
