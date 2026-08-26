@@ -64,6 +64,12 @@ const MAX_MESSAGE_JID_CACHE = 10000;
 const MAX_RECONNECT_ATTEMPTS = 30;
 const BASE_RECONNECT_DELAY_MS = 2000;
 
+// Auto group/participant sync: fired shortly after the socket opens (gives
+// app-state sync a moment to settle) and then on a recurring interval so
+// newly joined groups/members are picked up without a manual button click.
+const GROUP_SYNC_DELAY_MS = 5_000;
+const GROUP_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+
 export class BaileysProvider implements IMessagingProvider {
   private sockets: Map<string, ReturnType<typeof makeWASocket>> = new Map();
   private sessionStatuses: Map<string, SessionStatus> = new Map();
@@ -77,6 +83,9 @@ export class BaileysProvider implements IMessagingProvider {
   private sessionReadyAt: Map<string, number> = new Map();
   private lidToPhone: Map<string, string> = new Map();
   private lastQrCodes: Map<string, string> = new Map();
+  // Per-account timers for the recurring group/participant auto-sync.
+  private groupSyncTimeouts: Map<string, NodeJS.Timeout> = new Map();
+  private groupSyncIntervals: Map<string, NodeJS.Timeout> = new Map();
   private supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   getProviderType(): ProviderType {
@@ -260,6 +269,9 @@ export class BaileysProvider implements IMessagingProvider {
 
         if (connection === 'close') {
           const shouldReconnect = (lastDisconnect?.error as any)?.output?.statusCode !== DisconnectReason.loggedOut;
+          // Stop any pending/recurring group auto-sync for this account; it
+          // will be rescheduled if/when the socket re-opens.
+          this.clearAutoGroupSync(accountId);
           if (shouldReconnect) {
             this.sockets.delete(accountId);
             this.sessionStatuses.set(accountId, 'disconnected');
@@ -322,9 +334,13 @@ export class BaileysProvider implements IMessagingProvider {
 
           // Auto-create whatsapp_config so the webhook route can process inbound messages
           await this.ensureWhatsAppConfig(accountId, phoneNumber);
-          
+
           io.to(accountId).emit('ready', { phone: phoneNumber });
           this.emitSessionEvent(accountId, { type: 'ready' });
+
+          // Auto-sync groups + participants now, and on a recurring interval.
+          // Fire-and-forget; errors are caught inside autoSyncGroups.
+          this.scheduleAutoGroupSync(accountId);
         }
       }
 
@@ -585,6 +601,7 @@ export class BaileysProvider implements IMessagingProvider {
   }
 
   async destroySession(accountId: string): Promise<void> {
+    this.clearAutoGroupSync(accountId);
     const sock = this.sockets.get(accountId);
     if (sock) {
       try {
@@ -605,6 +622,9 @@ export class BaileysProvider implements IMessagingProvider {
   }
 
   async closeAll(): Promise<void> {
+    for (const accountId of this.groupSyncIntervals.keys()) {
+      this.clearAutoGroupSync(accountId);
+    }
     const promises = Array.from(this.sockets.entries()).map(async ([accountId, sock]) => {
       try {
         sock.end(undefined);
@@ -851,10 +871,210 @@ export class BaileysProvider implements IMessagingProvider {
         }
 
         participantCount += rows.length;
+
+        // Auto-build the contact database from group membership: upsert
+        // every participant with a resolved phone into `contacts` and tag
+        // them with the source group so they're filterable.
+        try {
+          await this.upsertParticipantsAsContacts(
+            accountId,
+            group.subject || group.id,
+            rows,
+          );
+        } catch (err) {
+          console.error(`[Baileys] Contact upsert from group ${group.id} failed:`, err);
+        }
       }
     }
 
     console.log(`[Baileys] Synced ${entries.length} groups, ${participantCount} participants for ${accountId} (phones resolved: ${phonesResolved}/${participantCount}, LID map: ${this.lidToPhone.size})`);
+    // #region agent log
+    agentLog('baileys-provider.ts:syncGroups', 'group sync complete', { accountIdPrefix: accountId.slice(0, 8), groupCount: entries.length, participantCount, phonesResolved }, 'D');
+    // #endregion
     return { groupCount: entries.length, participantCount };
+  }
+
+  /**
+   * Schedule the recurring group/participant auto-sync for an account.
+   * Called once when the Baileys socket reaches the `open` state. The
+   * initial run is deferred by GROUP_SYNC_DELAY_MS so app-state sync
+   * (contacts/chats) has a chance to populate the LID→phone map first,
+   * which improves participant phone resolution.
+   */
+  private scheduleAutoGroupSync(accountId: string) {
+    this.clearAutoGroupSync(accountId);
+    const initial = setTimeout(() => {
+      this.autoSyncGroups(accountId).catch((err) =>
+        console.error(`[Baileys] Initial auto group sync failed for ${accountId}:`, err),
+      );
+    }, GROUP_SYNC_DELAY_MS);
+    this.groupSyncTimeouts.set(accountId, initial);
+
+    const recurring = setInterval(() => {
+      this.autoSyncGroups(accountId).catch((err) =>
+        console.error(`[Baileys] Recurring auto group sync failed for ${accountId}:`, err),
+      );
+    }, GROUP_SYNC_INTERVAL_MS);
+    // Don't keep the worker process alive solely for this timer.
+    if (typeof (recurring as any).unref === 'function') (recurring as any).unref();
+    this.groupSyncIntervals.set(accountId, recurring);
+
+    // #region agent log
+    agentLog('baileys-provider.ts:scheduleAutoGroupSync', 'scheduled auto group sync', { accountIdPrefix: accountId.slice(0, 8), delayMs: GROUP_SYNC_DELAY_MS, intervalMs: GROUP_SYNC_INTERVAL_MS }, 'D');
+    // #endregion
+  }
+
+  private clearAutoGroupSync(accountId: string) {
+    const initial = this.groupSyncTimeouts.get(accountId);
+    if (initial) {
+      clearTimeout(initial);
+      this.groupSyncTimeouts.delete(accountId);
+    }
+    const recurring = this.groupSyncIntervals.get(accountId);
+    if (recurring) {
+      clearInterval(recurring);
+      this.groupSyncIntervals.delete(accountId);
+    }
+  }
+
+  private async autoSyncGroups(accountId: string) {
+    if (this.sessionStatuses.get(accountId) !== 'connected') return;
+    // #region agent log
+    agentLog('baileys-provider.ts:autoSyncGroups', 'auto group sync triggered', { accountIdPrefix: accountId.slice(0, 8) }, 'D');
+    // #endregion
+    const result = await this.syncGroups(accountId);
+    // #region agent log
+    agentLog('baileys-provider.ts:autoSyncGroups', 'auto group sync done', { accountIdPrefix: accountId.slice(0, 8), ...result }, 'D');
+    // #endregion
+  }
+
+  /**
+   * Upsert group participants into the `contacts` table (keyed by
+   * account_id + phone_normalized via the unique index from migration
+   * 022) and tag them with "WA Group: {groupName}" so the user can
+   * filter imported contacts by their source group. Existing contacts
+   * are left untouched so user edits to name/tags are never clobbered.
+   *
+   * Mirrors the dedupe pattern in
+   * apps/web/src/app/api/whatsapp/groups/import-all/route.ts: the
+   * (account_id, phone_normalized) unique index is a *partial* index
+   * (WHERE phone_normalized <> ''), which PostgREST's `onConflict`
+   * can't target (it can't express the index predicate), so we
+   * resolve existing rows first and insert only the missing ones.
+   */
+  private async upsertParticipantsAsContacts(
+    accountId: string,
+    groupName: string,
+    participantRows: any[],
+  ): Promise<{ contactsUpserted: number; tagged: number }> {
+    const withPhone = participantRows.filter((r) => !!r.phone);
+    if (withPhone.length === 0) return { contactsUpserted: 0, tagged: 0 };
+
+    const { data: account } = await this.supabase
+      .from('accounts')
+      .select('owner_user_id')
+      .eq('id', accountId)
+      .maybeSingle();
+    const ownerId = account?.owner_user_id;
+    if (!ownerId) {
+      console.warn(`[Baileys] No owner for account ${accountId}; skipping contact upsert from group ${groupName}`);
+      return { contactsUpserted: 0, tagged: 0 };
+    }
+
+    // 1) De-dup against existing contacts by normalized phone (digits
+    //    only), matching the generated `phone_normalized` column.
+    const normalize = (ph: string) => ph.replace(/\D/g, '');
+    const uniqueByNorm = new Map<string, { phone: string; display_name: string | null }>();
+    for (const p of withPhone) {
+      const norm = normalize(p.phone);
+      if (!norm) continue;
+      if (!uniqueByNorm.has(norm)) {
+        uniqueByNorm.set(norm, { phone: p.phone, display_name: p.display_name });
+      }
+    }
+
+    const existingNorm = new Set<string>();
+    const allPhones = [...uniqueByNorm.values()].map((p) => p.phone);
+    for (let i = 0; i < allPhones.length; i += 1000) {
+      const chunk = allPhones.slice(i, i + 1000);
+      const { data: existing } = await this.supabase
+        .from('contacts')
+        .select('phone')
+        .eq('account_id', accountId)
+        .in('phone', chunk);
+      (existing ?? []).forEach((c) => existingNorm.add(normalize(c.phone)));
+    }
+
+    const toInsert = [...uniqueByNorm.entries()]
+      .filter(([norm]) => !existingNorm.has(norm))
+      .map(([, p]) => ({
+        phone: p.phone,
+        name: p.display_name || null,
+        account_id: accountId,
+        user_id: ownerId,
+      }));
+
+    const CHUNK = 200;
+    for (let i = 0; i < toInsert.length; i += CHUNK) {
+      await this.supabase
+        .from('contacts')
+        .insert(toInsert.slice(i, i + CHUNK));
+    }
+
+    // 2) Resolve contact ids (new + pre-existing) so we can tag them.
+    const contactIds = new Set<string>();
+    for (let i = 0; i < allPhones.length; i += 1000) {
+      const chunk = allPhones.slice(i, i + 1000);
+      const { data } = await this.supabase
+        .from('contacts')
+        .select('id')
+        .eq('account_id', accountId)
+        .in('phone', chunk);
+      (data ?? []).forEach((c) => contactIds.add(c.id));
+    }
+
+    // 3) Ensure a per-group tag exists, then apply it to every contact.
+    const tagName = `WA Group: ${groupName}`;
+    let tagId: string | null = null;
+    const { data: existingTag } = await this.supabase
+      .from('tags')
+      .select('id')
+      .eq('account_id', accountId)
+      .eq('name', tagName)
+      .maybeSingle();
+    if (existingTag) {
+      tagId = existingTag.id;
+    } else {
+      const { data: newTag } = await this.supabase
+        .from('tags')
+        .insert({
+          name: tagName,
+          account_id: accountId,
+          user_id: ownerId,
+          color: '#22c55e',
+        })
+        .select('id')
+        .maybeSingle();
+      tagId = newTag?.id ?? null;
+    }
+
+    if (!tagId) {
+      return { contactsUpserted: toInsert.length, tagged: 0 };
+    }
+
+    const tagRows = [...contactIds].map((id) => ({
+      contact_id: id,
+      tag_id: tagId,
+    }));
+    for (let i = 0; i < tagRows.length; i += CHUNK) {
+      await this.supabase
+        .from('contact_tags')
+        .upsert(tagRows.slice(i, i + CHUNK), {
+          onConflict: 'contact_id,tag_id',
+          ignoreDuplicates: true,
+        });
+    }
+
+    return { contactsUpserted: toInsert.length, tagged: tagRows.length };
   }
 }
