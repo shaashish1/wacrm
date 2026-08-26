@@ -1,4 +1,27 @@
-.env
+# Cursor IDE
+.cursor/
 
-sessions/
-.wwebjs_cache/
+# Runtime/debug logs
+debug-*.log
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Common build artifacts (in case anything lands at root)
+node_modules/
+.next/
+dist/
+build/
+.turbo/
+.vercel/
+
+# Env files (secrets)
+.env
+.env.*
+!.env.example

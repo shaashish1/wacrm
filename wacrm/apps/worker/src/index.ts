@@ -1,0 +1,140 @@
+import dotenv from 'dotenv';
+dotenv.config({ path: '../web/.env.local' });
+
+import { createClient } from '@supabase/supabase-js';
+import { QueueProcessor } from './queue-processor';
+import { BaileysProvider } from './providers/baileys-provider';
+import { startWebhookDispatcherWorker, dispatchToWebhook, dispatchStatusToWebhook } from './webhook-dispatcher';
+import { httpServer, io } from './socket';
+import { agentLog } from './debug-log';
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+console.log('Worker service starting up...');
+
+let provider: BaileysProvider;
+let processor: QueueProcessor;
+let webhookWorker: any;
+
+async function main() {
+  provider = new BaileysProvider();
+  
+  // Register global callbacks
+  provider.onInboundMessage(async (accountId, message) => {
+    console.log(`[Baileys] Received message for ${accountId}: ${message.id}`);
+    
+    // Fetch phone_number_id from config to construct webhook payload
+    const { data: config } = await supabase
+      .from('whatsapp_config')
+      .select('phone_number_id')
+      .eq('account_id', accountId)
+      .maybeSingle();
+      
+    if (config?.phone_number_id) {
+      await dispatchToWebhook(accountId, config.phone_number_id, message);
+    }
+  });
+
+  provider.onMessageStatus(async (accountId, status) => {
+    console.log(`[Baileys] Status update for ${accountId}: ${status.messageId} -> ${status.status}`);
+    
+    const { data: config } = await supabase
+      .from('whatsapp_config')
+      .select('phone_number_id')
+      .eq('account_id', accountId)
+      .maybeSingle();
+      
+    if (config?.phone_number_id) {
+      const tsString = Math.floor(status.timestamp / 1000).toString();
+      await dispatchStatusToWebhook(accountId, config.phone_number_id, {
+        id: status.messageId,
+        status: status.status,
+        timestamp: tsString,
+        recipient_id: status.recipientId,
+      });
+    }
+  });
+
+  provider.onSessionEvent((accountId, event) => {
+    console.log(`[Baileys] Session event for ${accountId}: ${event.type}`);
+  });
+
+  // Start all registered sessions
+  const { data: sessions } = await supabase
+    .from('sessions')
+    .select('account_id, config')
+    .eq('provider_type', 'wwebjs');
+
+  if (sessions) {
+    for (const session of sessions) {
+      console.log(`Initializing Baileys session for account ${session.account_id}...`);
+      await provider.initializeSession(session.account_id, session.config || {});
+    }
+  }
+
+  // Start Queue processor using the same provider instance
+  processor = new QueueProcessor(provider);
+  processor.start();
+
+  // Start Webhook Dispatcher
+  webhookWorker = startWebhookDispatcherWorker();
+  
+  // Start Socket.IO Server
+  const PORT = process.env.WORKER_SOCKET_PORT || 4000;
+  
+  io.on('connection', (socket) => {
+    console.log(`[Socket.IO] Client connected: ${socket.id}`);
+    
+    socket.on('join', (accountId: string) => {
+      console.log(`[Socket.IO] Client ${socket.id} joining room ${accountId}`);
+      socket.join(accountId);
+
+      provider.getSessionStatus(accountId).then((status) => {
+        const qr = provider.getLastQr(accountId);
+        const roomSize = io.sockets.adapter.rooms.get(accountId)?.size ?? 0;
+        // #region agent log
+        agentLog('worker/index.ts:join', 'client joined socket room', { accountIdPrefix: String(accountId).slice(0, 8), status, roomSize, hasQr: !!qr, qrLen: qr?.length ?? 0 }, 'A');
+        // #endregion
+        socket.emit('status', { status });
+        if (qr) {
+          socket.emit('qr_refresh', qr);
+        }
+      }).catch(() => {});
+    });
+    
+    socket.on('disconnect', () => {
+      console.log(`[Socket.IO] Client disconnected: ${socket.id}`);
+    });
+  });
+
+  httpServer.listen(PORT, () => {
+    console.log(`Socket.IO server listening on port ${PORT}`);
+  });
+
+  console.log('Worker service is running and ready to process messages.');
+}
+
+main().catch((err) => {
+  console.error('Fatal error during startup:', err);
+  process.exit(1);
+});
+
+async function shutdown(signal: string) {
+  console.log(`\n[Worker] Received ${signal}, shutting down gracefully...`);
+  try {
+    if (processor) await processor.stop();
+    if (webhookWorker) await webhookWorker.close();
+    if (provider) await provider.closeAll();
+    httpServer.close();
+  } catch (err) {
+    console.error('[Worker] Error during shutdown:', err);
+  }
+  console.log('[Worker] Shutdown complete.');
+  process.exit(0);
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
