@@ -7,9 +7,12 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(request: Request) {
-  // Validate cron secret if configured
+  const expected = process.env.CRON_SECRET;
+  if (!expected) {
+    return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 503 });
+  }
   const authHeader = request.headers.get('authorization');
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${expected}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -46,7 +49,9 @@ export async function GET(request: Request) {
       if (stepsErr || !steps) continue;
 
       // Find the current step to execute
-      const currentStepObj = steps.find((s: any) => s.position === enrollment.current_step);
+      const currentStepObj = steps.find(
+        (s: { position: number }) => s.position === enrollment.current_step,
+      );
 
       if (!currentStepObj) {
         // No more steps, mark completed

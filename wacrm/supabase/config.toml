@@ -371,8 +371,10 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# This project has no supabase/functions. Edge runtime on Windows often
+# exits (255) with an empty functions dir, which shows as a red container.
 [edge_runtime]
-enabled = true
+enabled = false
 # Supported request policies: `oneshot`, `per_worker`.
 # `per_worker` (default) — enables hot reload during local development.
 # `oneshot` — fallback mode if hot reload causes issues (e.g. in large repos or with symlinks).
@@ -385,8 +387,12 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Vector (Logflare log router) binds the Docker socket. On Docker Desktop
+# for Windows that source fails with NetworkUnreachable and the container
+# restart-loops. Analytics is only Studio log ingestion — disable it so
+# the local stack stays healthy. Hosted Supabase still has its own logs.
 [analytics]
-enabled = true
+enabled = false
 port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"

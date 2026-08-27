@@ -87,8 +87,8 @@ cp .env.local.example .env.local   # fill in Supabase + Meta creds
 npm run dev
 ```
 
-Open <http://localhost:3000>. You'll be redirected to `/login` (or
-`/dashboard` if already signed in).
+Open <http://localhost:3100>. You'll be redirected to `/login` (or
+`/dashboard` if already signed in). Production (`next start`) also uses **3100**. See [docs/production.md](./docs/production.md).
 
 ## 🚀 Deploy on Hostinger (recommended)
 
@@ -151,6 +151,7 @@ Key pages:
 - [Deploy on Hostinger](https://wacrm.tech/docs/deployment-hostinger)
 - [Architecture](https://wacrm.tech/docs/architecture)
 - [Troubleshooting](https://wacrm.tech/docs/troubleshooting)
+- [Production (Compose, health, hosted vs local Supabase)](./docs/production.md)
 
 ## Stack
 

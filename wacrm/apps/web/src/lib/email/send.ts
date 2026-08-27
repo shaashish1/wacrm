@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { decrypt } from '@/lib/whatsapp/encryption';
 
 export interface EmailPayload {
@@ -8,7 +9,11 @@ export interface EmailPayload {
   text?: string;
 }
 
-export async function sendEmail(supabase: any, accountId: string, payload: EmailPayload) {
+export async function sendEmail(
+  supabase: SupabaseClient,
+  accountId: string,
+  payload: EmailPayload,
+) {
   const { data: config, error } = await supabase
     .from('email_configs')
     .select('*')

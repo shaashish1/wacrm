@@ -34,37 +34,6 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 
-function agentLog(
-  location: string,
-  message: string,
-  data: Record<string, unknown>,
-  hypothesisId: string,
-) {
-  const payload = {
-    sessionId: '978181',
-    runId: 'post-fix',
-    hypothesisId,
-    location,
-    message,
-    data,
-    timestamp: Date.now(),
-  };
-  const body = JSON.stringify(payload);
-  fetch('http://127.0.0.1:7430/ingest/9d2e93b4-70b1-476c-91a3-033ad518f09e', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Debug-Session-Id': '978181',
-    },
-    body,
-  }).catch(() => {});
-  fetch('/api/debug-ingest', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  }).catch(() => {});
-}
-
 type PairingMode = 'qr' | 'phone';
 
 export function WWebJSConfig() {
@@ -119,14 +88,13 @@ export function WWebJSConfig() {
 
       if (error) {
         console.error('Failed to load session:', error);
-        // #region agent log
-        agentLog('wwebjs-config.tsx:fetchSession', 'session fetch error', { hasError: true }, 'A');
-        // #endregion
       } else {
         if (merged.qr_code || merged.pairing_code || merged.status === 'READY') {
-          // #region agent log
-          agentLog('wwebjs-config.tsx:fetchSession', 'session fetch result', { hasSession: hasRow, status: merged.status, hasQr: !!merged.qr_code, qrLen: merged.qr_code?.length ?? 0, hasPairing: !!merged.pairing_code, fromApi: !data?.qr_code && !!apiPayload?.qr_code }, 'A');
-          // #endregion
+          console.log('[wwebjs] session poll', {
+            status: merged.status,
+            hasQr: !!merged.qr_code,
+            hasPairing: !!merged.pairing_code,
+          });
         }
         if (merged.qr_code || merged.pairing_code) {
           setStarting(false);
@@ -150,9 +118,6 @@ export function WWebJSConfig() {
 
   useEffect(() => {
     fetchSession();
-    // #region agent log
-    agentLog('wwebjs-config.tsx:mount', 'using DB polling for QR (no socket.io-client import)', { hasAccount: !!accountId }, 'E');
-    // #endregion
   }, [accountId, fetchSession]);
 
   useEffect(() => {
@@ -198,9 +163,6 @@ export function WWebJSConfig() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider_type: 'wwebjs', start_session: true }),
       });
-      // #region agent log
-      agentLog('wwebjs-config.tsx:handleConnectQR', 'init session POST result', { ok: res.ok, status: res.status, usingPolling: true }, 'B');
-      // #endregion
       if (!res.ok) throw new Error('Failed to start session');
       setStarting(true);
       toast.success('Starting QR code session...');

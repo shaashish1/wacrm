@@ -1,37 +1,14 @@
-import { appendFileSync } from 'fs';
-
-const LOG_PATH = 'D:/Projects/whatsapp/debug-978181.log';
-const INGEST =
-  'http://127.0.0.1:7430/ingest/9d2e93b4-70b1-476c-91a3-033ad518f09e';
-
+/** Structured worker logs. Debug ingest / local file sinks are not used in production. */
 export function agentLog(
   location: string,
   message: string,
   data: Record<string, unknown>,
-  hypothesisId: string,
-  runId = 'post-fix',
+  hypothesisId?: string,
+  runId?: string,
 ) {
-  const payload = {
-    sessionId: '978181',
-    runId,
-    hypothesisId,
-    location,
-    message,
-    data,
-    timestamp: Date.now(),
-  };
-  const body = JSON.stringify(payload);
-  fetch(INGEST, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Debug-Session-Id': '978181',
-    },
-    body,
-  }).catch(() => {});
-  try {
-    appendFileSync(LOG_PATH, body + '\n');
-  } catch {
-    // ignore debug I/O failures
-  }
+  console.log(`[Worker] ${location}: ${message}`, {
+    ...(hypothesisId ? { hypothesisId } : {}),
+    ...(runId ? { runId } : {}),
+    ...data,
+  });
 }

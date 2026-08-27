@@ -1,5 +1,12 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: '../web/.env.local' });
+import path from 'path';
+
+// Production: real process env wins. Local fallbacks: cwd `.env`, then web `.env.local`.
+dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  dotenv.config({ path: path.resolve(process.cwd(), '../web/.env.local') });
+}
 
 import { createClient } from '@supabase/supabase-js';
 import { QueueProcessor } from './queue-processor';
@@ -121,9 +128,13 @@ async function main() {
       provider.getSessionStatus(accountId).then((status) => {
         const qr = provider.getLastQr(accountId);
         const roomSize = io.sockets.adapter.rooms.get(accountId)?.size ?? 0;
-        // #region agent log
-        agentLog('worker/index.ts:join', 'client joined socket room', { accountIdPrefix: String(accountId).slice(0, 8), status, roomSize, hasQr: !!qr, qrLen: qr?.length ?? 0 }, 'A');
-        // #endregion
+        agentLog('worker/index.ts:join', 'client joined socket room', {
+          accountIdPrefix: String(accountId).slice(0, 8),
+          status,
+          roomSize,
+          hasQr: !!qr,
+          qrLen: qr?.length ?? 0,
+        });
         socket.emit('status', { status });
         if (qr) {
           socket.emit('qr_refresh', qr);

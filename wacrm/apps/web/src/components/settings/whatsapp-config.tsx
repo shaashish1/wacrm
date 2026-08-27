@@ -144,14 +144,8 @@ export function WhatsAppConfig() {
       // never see the QR-code panel because providerType stays 'meta'.
       let detectedProvider: 'meta' | 'wwebjs' = 'meta';
       try {
-        const t0 = Date.now();
         const res = await fetch('/api/whatsapp/config', { method: 'GET' });
         const payload = await res.json();
-        // #region agent log
-        const getLog = {sessionId:'978181',runId:'post-fix',hypothesisId:'D',location:'whatsapp-config.tsx:fetchConfig',message:'GET /api/whatsapp/config finished',data:{durationMs:Date.now()-t0,ok:res.ok,connected:!!payload.connected,providerType:payload.provider_type??null,reason:payload.reason??null},timestamp:Date.now()};
-        fetch('http://127.0.0.1:7430/ingest/9d2e93b4-70b1-476c-91a3-033ad518f09e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'978181'},body:JSON.stringify(getLog)}).catch(()=>{});
-        fetch('/api/debug-ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(getLog)}).catch(()=>{});
-        // #endregion
 
         if (payload.connected) {
           setConnectionStatus('connected');

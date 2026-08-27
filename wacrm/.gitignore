@@ -64,3 +64,6 @@ apps/*/package-lock.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local npm workaround dirs
+.tmp-deps/

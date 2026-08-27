@@ -1,3 +1,4 @@
+import path from "path";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
@@ -64,6 +65,12 @@ const SECURITY_HEADERS = [
 ] as const;
 
 const nextConfig: NextConfig = {
+  // Pin the Turbopack workspace so it does not infer `src/app` as the
+  // project root and then fail to resolve next/package.json.
+  turbopack: {
+    root: path.join(__dirname),
+  },
+
   /**
    * Cross-origin dev access (Next.js 16).
    *

@@ -32,10 +32,7 @@ export default function ForgotPasswordPage() {
     });
 
     if (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7430/ingest/9d2e93b4-70b1-476c-91a3-033ad518f09e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'978181'},body:JSON.stringify({sessionId:'978181',runId:'pre-fix',hypothesisId:'A',location:'forgot-password/page.tsx:handleReset',message:'resetPasswordForEmail failed',data:{errName:error.name,errStatus:(error as {status?:number}).status??null,errCode:(error as {code?:string}).code??null,errMsg:error.message,origin:window.location.origin},timestamp:Date.now()})}).catch(()=>{});
-      fetch('/api/debug-ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'978181',runId:'pre-fix',hypothesisId:'A',location:'forgot-password/page.tsx:handleReset',message:'resetPasswordForEmail failed',data:{errName:error.name,errStatus:(error as {status?:number}).status??null,errCode:(error as {code?:string}).code??null,errMsg:error.message,origin:window.location.origin},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
+      console.error('[forgot-password] resetPasswordForEmail failed:', error.message);
       setError(
         error.message === 'Error sending recovery email'
           ? 'Could not send email. Self-hosted Auth usually needs SMTP configured (GOTRUE_SMTP_HOST / USER / PASS on the GoTrue service). Sign in with your existing password, or create a new account if email confirmation is disabled.'

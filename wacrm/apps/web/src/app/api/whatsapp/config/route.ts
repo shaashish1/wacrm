@@ -118,11 +118,10 @@ export async function GET() {
         .select('status, phone_number, qr_code, pairing_code')
         .eq('account_id', accountId)
         .maybeSingle()
+      if (sessionError) {
+        console.error('[whatsapp/config GET] session lookup failed:', sessionError.message)
+      }
       const connected = session?.status === 'READY'
-      // #region agent log
-      fetch('http://127.0.0.1:7430/ingest/9d2e93b4-70b1-476c-91a3-033ad518f09e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'978181'},body:JSON.stringify({sessionId:'978181',runId:'post-fix',hypothesisId:'D',location:'config/route.ts:GET-wwebjs',message:'skipped Meta verify for wwebjs',data:{connected,sessionStatus:session?.status??null,hasQr:!!session?.qr_code,qrLen:session?.qr_code?.length??0,sessionError:sessionError?.message??null},timestamp:Date.now()})}).catch(()=>{});
-      try { require('fs').appendFileSync('D:/Projects/whatsapp/debug-978181.log', JSON.stringify({sessionId:'978181',runId:'post-fix',hypothesisId:'D',location:'config/route.ts:GET-wwebjs',message:'skipped Meta verify for wwebjs',data:{connected,sessionStatus:session?.status??null,hasQr:!!session?.qr_code,qrLen:session?.qr_code?.length??0,sessionError:sessionError?.message??null},timestamp:Date.now()})+'\n') } catch {}
-      // #endregion
       return NextResponse.json({
         connected,
         provider_type: 'wwebjs',
@@ -180,16 +179,14 @@ export async function GET() {
         phoneNumberId: config.phone_number_id,
         accessToken,
       })
-      // #region agent log
-      fetch('http://127.0.0.1:7430/ingest/9d2e93b4-70b1-476c-91a3-033ad518f09e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'978181'},body:JSON.stringify({sessionId:'978181',runId:'post-fix',hypothesisId:'D',location:'config/route.ts:GET-meta',message:'Meta verify completed',data:{ok:true,providerType,phoneNumberIdLen:String(config.phone_number_id||'').length,durationMs:Date.now()-metaStart},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
+      console.log('[whatsapp/config GET] Meta verify ok', {
+        providerType,
+        durationMs: Date.now() - metaStart,
+      })
       return NextResponse.json({ connected: true, phone_info: phoneInfo, provider_type: providerType })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown Meta API error'
       console.error('[whatsapp/config GET] Meta API verification failed:', message)
-      // #region agent log
-      fetch('http://127.0.0.1:7430/ingest/9d2e93b4-70b1-476c-91a3-033ad518f09e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'978181'},body:JSON.stringify({sessionId:'978181',runId:'post-fix',hypothesisId:'D',location:'config/route.ts:GET-meta',message:'Meta verify failed (still called for this provider)',data:{ok:false,providerType,phoneNumberId:String(config.phone_number_id||'').slice(0,12),err:message},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       return NextResponse.json(
         {
           connected: false,

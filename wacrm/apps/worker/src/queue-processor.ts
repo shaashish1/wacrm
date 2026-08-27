@@ -51,9 +51,11 @@ export class QueueProcessor {
 
     if (action === 'initSession') {
       const status = await this.provider.getSessionStatus(accountId);
-      // #region agent log
-      agentLog('queue-processor.ts:initSession', 'initSession job received', { accountIdPrefix: String(accountId).slice(0, 8), status, willSkip: status === 'connected' }, 'B');
-      // #endregion
+      agentLog('queue-processor.ts:initSession', 'initSession job received', {
+        accountIdPrefix: String(accountId).slice(0, 8),
+        status,
+        willSkip: status === 'connected',
+      });
       if (status === 'connected') return;
 
       // Reset the reconnect counter so a fresh "Generate QR" request starts
