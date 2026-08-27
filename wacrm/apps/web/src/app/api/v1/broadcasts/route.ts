@@ -1,39 +1,26 @@
 // ============================================================
-// POST /api/v1/broadcasts — launch a template broadcast
-// (scope: broadcasts:send).
+// POST /api/v1/broadcasts — launch a broadcast (scope: broadcasts:send).
 //
-// Body:
+// Cloud API (template):
+//   { "name"?, "template_name", "template_language"?, "recipients": [{ "to", "params"? }] }
+//
+// wwebjs plain-text (durable send_queue, same path as the dashboard):
 //   {
-//     "name": "July promo",                 // optional label
-//     "template_name": "promo_july",        // required, approved template
-//     "template_language": "en_US",         // optional (default en_US)
-//     "recipients": [                        // required, 1..1000
-//       { "to": "+14155550123", "params": ["Jane"] },
-//       { "to": "+14155550124" }
-//     ]
+//     "name"?,
+//     "body": "Hi {{name}}",
+//     "media_url"?, "media_kind"?: "image"|"video"|"document",
+//     "recipients": [{ "to": "+14155550123" }]
+//       OR "audience": { "type": "all"|"tags"|"group", "tag_ids"?, "group_ids"? }
 //   }
 //
-// The broadcast + its recipient rows are persisted synchronously, then
-// the Meta fan-out runs in `after()` so the request returns fast. Poll
-// `GET /api/v1/broadcasts/{id}` for progress.
-//
-// Response (202):
-//   { "data": { "broadcast_id", "status": "sending",
-//               "total_recipients", "accepted", "rejected" } }
+// Template fan-out still uses after(); plain-text returns after enqueue.
+// Poll GET /api/v1/broadcasts/{id} for progress.
 // ============================================================
 
 import { after } from 'next/server';
 
 import { requireApiKey } from '@/lib/auth/api-context';
 
-// The `after()` fan-out below sends to every recipient sequentially and
-// runs within this route's max duration (the same constraint the
-// webhook route documents). Give it headroom beyond the platform
-// default so a modest batch isn't cut off mid-send — which would leave
-// recipient rows 'pending' and the broadcast stuck 'sending'. This is a
-// bound, not a guarantee: a near-cap (MAX_RECIPIENTS) audience can
-// still exceed 60s, so very large sends should be split across
-// requests. A durable queue/cron drain is the complete fix (follow-up).
 export const maxDuration = 60;
 import { ok, fail, toApiErrorResponse } from '@/lib/api/v1/respond';
 import { resolveAuditUserId, ContactError } from '@/lib/api/v1/contacts';
@@ -42,6 +29,15 @@ import {
   deliverBroadcast,
   BroadcastError,
 } from '@/lib/whatsapp/broadcast-core';
+import { createAndEnqueuePlainBroadcast } from '@/lib/broadcasts/plain-broadcast';
+import type { PlainMediaKind } from '@/lib/broadcasts/plain-jobs';
+
+function parseMediaKind(value: unknown): PlainMediaKind | null {
+  if (value === 'image' || value === 'video' || value === 'document' || value === 'audio') {
+    return value;
+  }
+  return null;
+}
 
 export async function POST(request: Request) {
   try {
@@ -57,9 +53,67 @@ export async function POST(request: Request) {
 
     const templateName =
       typeof body.template_name === 'string' ? body.template_name : '';
+    const plainBody = typeof body.body === 'string' ? body.body : '';
     const recipients = Array.isArray(body.recipients) ? body.recipients : [];
 
     const auditUserId = await resolveAuditUserId(ctx.supabase, ctx.accountId);
+
+    if (!templateName && plainBody.trim()) {
+      const audienceRaw =
+        body.audience && typeof body.audience === 'object'
+          ? (body.audience as Record<string, unknown>)
+          : null;
+      let audience: {
+        type: 'all' | 'tags' | 'group';
+        tag_ids?: string[];
+        group_ids?: string[];
+      } | null = null;
+      if (audienceRaw) {
+        const audienceType = audienceRaw.type;
+        if (
+          audienceType === 'all' ||
+          audienceType === 'tags' ||
+          audienceType === 'group'
+        ) {
+          audience = {
+            type: audienceType,
+            tag_ids: Array.isArray(audienceRaw.tag_ids)
+              ? audienceRaw.tag_ids.filter((id): id is string => typeof id === 'string')
+              : undefined,
+            group_ids: Array.isArray(audienceRaw.group_ids)
+              ? audienceRaw.group_ids.filter((id): id is string => typeof id === 'string')
+              : undefined,
+          };
+        }
+      }
+
+      const result = await createAndEnqueuePlainBroadcast(
+        ctx.supabase,
+        ctx.accountId,
+        auditUserId,
+        {
+          name: typeof body.name === 'string' ? body.name : null,
+          body: plainBody,
+          mediaUrl: typeof body.media_url === 'string' ? body.media_url : null,
+          mediaKind: parseMediaKind(body.media_kind),
+          recipients: recipients.map((r) => ({
+            to: typeof r?.to === 'string' ? r.to : '',
+          })),
+          audience,
+        },
+      );
+
+      return ok(
+        {
+          broadcast_id: result.broadcastId,
+          status: 'sending',
+          total_recipients: result.totalRecipients,
+          accepted: result.totalRecipients,
+          rejected: result.rejected,
+        },
+        202,
+      );
+    }
 
     const plan = await createBroadcast(ctx.supabase, ctx.accountId, auditUserId, {
       name: typeof body.name === 'string' ? body.name : null,
@@ -74,9 +128,6 @@ export async function POST(request: Request) {
       })),
     });
 
-    // Fan out after the response is sent. Uses the same service-role
-    // client — no request-scoped auth needed for the Meta calls or
-    // the account-scoped row updates.
     after(() => deliverBroadcast(ctx.supabase, plan));
 
     return ok(

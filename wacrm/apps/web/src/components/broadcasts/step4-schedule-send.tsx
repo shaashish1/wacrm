@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { ArrowLeft, Send, Loader2, Users, Save, Clock } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import type { BroadcastRecurrence } from '@/lib/broadcasts/recurrence';
 
 interface AudienceConfig {
   type: string;
@@ -32,7 +33,7 @@ interface Step4Props {
   isPlainText?: boolean;
   plainTextPreview?: string;
   audience: AudienceConfig;
-  onSend: (scheduledAt?: string | null) => void;
+  onSend: (scheduledAt?: string | null, recurrence?: BroadcastRecurrence | null) => void;
   onSaveDraft?: () => void;
   onBack: () => void;
   isProcessing: boolean;
@@ -58,6 +59,7 @@ export function Step4ScheduleSend({
   const [loadingReach, setLoadingReach] = useState(true);
   const [sendMode, setSendMode] = useState<'now' | 'schedule'>('now');
   const [scheduledLocal, setScheduledLocal] = useState('');
+  const [recurrence, setRecurrence] = useState<BroadcastRecurrence | ''>('');
 
   useEffect(() => {
     async function calculateReach() {
@@ -211,6 +213,22 @@ export function Step4ScheduleSend({
               onChange={(e) => setScheduledLocal(e.target.value)}
               className="border-border bg-muted text-foreground"
             />
+            <div className="mt-3">
+              <label className="mb-1.5 block text-xs text-muted-foreground">
+                {t('scheduleSend.repeat')}
+              </label>
+              <select
+                value={recurrence}
+                onChange={(e) =>
+                  setRecurrence(e.target.value as BroadcastRecurrence | '')
+                }
+                className="h-9 w-full rounded-md border border-border bg-muted px-3 text-sm text-foreground"
+              >
+                <option value="">{t('scheduleSend.repeatNone')}</option>
+                <option value="daily">{t('scheduleSend.repeatDaily')}</option>
+                <option value="weekly">{t('scheduleSend.repeatWeekly')}</option>
+              </select>
+            </div>
           </div>
         )}
       </div>
@@ -308,7 +326,10 @@ export function Step4ScheduleSend({
                     sendMode === 'schedule' && scheduledLocal
                       ? new Date(scheduledLocal).toISOString()
                       : null;
-                  onSend(iso);
+                  onSend(
+                    iso,
+                    sendMode === 'schedule' && recurrence ? recurrence : null,
+                  );
                 }}
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
               >

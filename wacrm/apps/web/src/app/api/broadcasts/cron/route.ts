@@ -7,8 +7,13 @@ import {
   type SendQueueJobInput,
 } from '@/lib/broadcasts/enqueue-send-queue';
 import { notifyBroadcastOwner } from '@/lib/broadcasts/notify';
-import { substitutePlainText, resolveVariables } from '@/lib/broadcasts/personalize';
+import { resolveVariables } from '@/lib/broadcasts/personalize';
 import type { VariableMapping } from '@/lib/broadcasts/personalize';
+import { buildPlainSendJobs, type PlainMediaKind } from '@/lib/broadcasts/plain-jobs';
+import {
+  isBroadcastRecurrence,
+  nextScheduledAt,
+} from '@/lib/broadcasts/recurrence';
 import { buildSendComponents } from '@/lib/whatsapp/template-send-builder';
 import { isMessageTemplate } from '@/lib/whatsapp/template-row-guard';
 import { sanitizePhoneForMeta, isValidE164 } from '@/lib/whatsapp/phone-utils';
@@ -20,7 +25,7 @@ import type { Contact, MessageTemplate } from '@/types';
  * Auth: Authorization: Bearer $CRON_SECRET
  * Local: curl -H "Authorization: Bearer $env:CRON_SECRET" http://localhost:3100/api/broadcasts/cron
  *
- * Recurring broadcasts are not implemented — skip / later.
+ * Recurring (daily/weekly) rows are cloned to the next fire time after enqueue.
  */
 function authorize(request: Request): boolean {
   const expected = process.env.CRON_SECRET;
@@ -71,12 +76,15 @@ async function handle(request: Request) {
       .update({ status: 'sending' })
       .eq('id', broadcast.id)
       .eq('status', 'scheduled')
-      .select('id, name, user_id, account_id, template_name, template_language, template_variables, audience_filter')
+      .select(
+        'id, name, user_id, account_id, template_name, template_language, template_variables, audience_filter, recurrence, scheduled_at',
+      )
       .maybeSingle();
     if (!claimed) continue;
 
     try {
       await enqueueClaimedBroadcast(claimed);
+      await cloneNextOccurrence(claimed);
       if (claimed.user_id && claimed.account_id) {
         await notifyBroadcastOwner({
           accountId: claimed.account_id,
@@ -97,6 +105,79 @@ async function handle(request: Request) {
   }
 
   return NextResponse.json({ processed });
+}
+
+async function cloneNextOccurrence(broadcast: {
+  id: string;
+  name: string;
+  user_id: string | null;
+  account_id: string;
+  template_name: string;
+  template_language: string;
+  template_variables: Record<string, unknown> | null;
+  audience_filter: Record<string, unknown> | null;
+  recurrence: string | null;
+  scheduled_at: string | null;
+}) {
+  if (!isBroadcastRecurrence(broadcast.recurrence)) return;
+  const admin = supabaseAdmin();
+  const nextAt = nextScheduledAt(
+    broadcast.scheduled_at ?? new Date().toISOString(),
+    broadcast.recurrence,
+  );
+
+  const { data: recipients, error: recErr } = await admin
+    .from('broadcast_recipients')
+    .select('contact_id')
+    .eq('broadcast_id', broadcast.id)
+    .not('contact_id', 'is', null);
+  if (recErr) {
+    console.warn('[broadcasts/cron] clone recipients read failed:', recErr.message);
+    return;
+  }
+  const contactIds = [...new Set((recipients ?? []).map((r) => r.contact_id as string))];
+
+  const { data: next, error: insErr } = await admin
+    .from('broadcasts')
+    .insert({
+      user_id: broadcast.user_id,
+      account_id: broadcast.account_id,
+      name: broadcast.name,
+      template_name: broadcast.template_name,
+      template_language: broadcast.template_language,
+      template_variables: broadcast.template_variables,
+      audience_filter: broadcast.audience_filter,
+      scheduled_at: nextAt,
+      recurrence: broadcast.recurrence,
+      status: 'scheduled',
+      total_recipients: contactIds.length,
+      sent_count: 0,
+      delivered_count: 0,
+      read_count: 0,
+      replied_count: 0,
+      failed_count: 0,
+    })
+    .select('id')
+    .single();
+  if (insErr || !next) {
+    console.warn('[broadcasts/cron] clone insert failed:', insErr?.message);
+    return;
+  }
+
+  if (contactIds.length === 0) return;
+  const rows = contactIds.map((contact_id) => ({
+    broadcast_id: next.id,
+    contact_id,
+    status: 'pending' as const,
+  }));
+  const CHUNK = 200;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const { error } = await admin.from('broadcast_recipients').insert(rows.slice(i, i + CHUNK));
+    if (error) {
+      console.warn('[broadcasts/cron] clone recipient insert failed:', error.message);
+      return;
+    }
+  }
 }
 
 async function enqueueClaimedBroadcast(broadcast: {
@@ -121,38 +202,20 @@ async function enqueueClaimedBroadcast(broadcast: {
   const vars = (broadcast.template_variables ?? {}) as Record<string, unknown>;
 
   if (isPlain) {
-    const body = String(vars.body ?? '');
-    const mediaUrl =
-      typeof vars.mediaUrl === 'string' ? vars.mediaUrl.trim() : '';
-    const mediaKind = (vars.mediaKind as 'image' | 'video' | 'document' | 'audio') || 'image';
-    for (const r of recipients ?? []) {
-      const contact = r.contact as Contact | null;
-      const phone = contact?.phone;
-      if (!phone || contact?.opted_out) continue;
-      const sanitized = sanitizePhoneForMeta(phone);
-      if (!isValidE164(sanitized)) continue;
-      const text = substitutePlainText(body, contact);
-      const options = {
-        broadcastRecipientId: r.id,
-        broadcastId: broadcast.id,
-        contactId: r.contact_id,
-      };
-      jobs.push({
-        accountId: broadcast.account_id,
-        providerType: 'wwebjs',
-        action: mediaUrl ? 'sendMedia' : 'sendText',
-        payload: mediaUrl
-          ? {
-              to: sanitized,
-              kind: mediaKind,
-              media: { link: mediaUrl },
-              caption: text,
-              options,
-            }
-          : { to: sanitized, body: text, options },
-      });
-      queuedIds.push(r.id);
-    }
+    const built = buildPlainSendJobs({
+      accountId: broadcast.account_id,
+      broadcastId: broadcast.id,
+      body: String(vars.body ?? ''),
+      mediaUrl: typeof vars.mediaUrl === 'string' ? vars.mediaUrl : undefined,
+      mediaKind: (vars.mediaKind as PlainMediaKind) || 'image',
+      recipients: (recipients ?? []).map((r) => ({
+        id: r.id as string,
+        contact_id: r.contact_id as string | null,
+        contact: r.contact as Contact | null,
+      })),
+    });
+    jobs.push(...built.jobs);
+    queuedIds.push(...built.queuedIds);
   } else {
     const { data: rawTemplate } = await admin
       .from('message_templates')

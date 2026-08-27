@@ -45,4 +45,26 @@ describe('RateGovernor', () => {
 
     await expect(governor.enforceLimits('acc-1')).resolves.toBeUndefined();
   });
+
+  it('sleeps 15–60s while a session is warming', async () => {
+    rpcMock.mockResolvedValue({ data: 10, error: null });
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        warming_started_at: new Date().toISOString(),
+        warming_graduated_at: null,
+        last_connected_at: new Date().toISOString(),
+      },
+      error: null,
+    });
+    const sleep = vi
+      .spyOn(governor as unknown as { sleep: (ms: number) => Promise<void> }, 'sleep')
+      .mockResolvedValue(undefined);
+
+    await governor.enforceLimits('acc-1', { jitterMinMs: 1000, jitterMaxMs: 3000 });
+    expect(sleep).toHaveBeenCalledTimes(1);
+    const ms = sleep.mock.calls[0][0];
+    expect(ms).toBeGreaterThanOrEqual(15_000);
+    expect(ms).toBeLessThanOrEqual(60_000);
+    sleep.mockRestore();
+  });
 });

@@ -53,6 +53,8 @@ interface BroadcastPayload {
   plainText?: PlainTextBroadcast;
   /** ISO datetime — when set in the future, persist as scheduled instead of sending. */
   scheduledAt?: string | null;
+  /** Daily/weekly clone after the scheduled send fires. */
+  recurrence?: 'daily' | 'weekly' | null;
 }
 
 export type ProviderType = 'wwebjs' | 'cloud_api';
@@ -383,6 +385,7 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
         template_variables: { body, mediaUrl: mediaUrl ?? null, mediaKind },
         audience_filter: audienceFilter,
         scheduled_at: isScheduled ? scheduledAt : null,
+        recurrence: isScheduled ? payload.recurrence ?? null : null,
         status: isScheduled ? 'scheduled' : 'sending',
         total_recipients: contacts.length,
         sent_count: 0,
@@ -556,6 +559,7 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
             headerMediaUrl: payload.headerMediaUrl ?? null,
           },
           scheduled_at: isScheduled ? scheduledAt : null,
+          recurrence: isScheduled ? payload.recurrence ?? null : null,
           status: isScheduled ? 'scheduled' : 'sending',
           total_recipients: contacts.length,
           sent_count: 0,

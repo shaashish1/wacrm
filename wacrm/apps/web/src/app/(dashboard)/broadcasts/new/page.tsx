@@ -154,7 +154,10 @@ function NewBroadcastWizard() {
   const isWwebjs = providerType === 'wwebjs';
   const steps = isWwebjs ? wwebjsSteps : cloudSteps;
 
-  async function handleSend(scheduledAt?: string | null) {
+  async function handleSend(
+    scheduledAt?: string | null,
+    recurrence?: 'daily' | 'weekly' | null,
+  ) {
     if (isWwebjs) {
       if (!plainDraft.body.trim()) return;
     } else if (!template) {
@@ -176,6 +179,7 @@ function NewBroadcastWizard() {
         variables,
         headerMediaUrl,
         scheduledAt,
+        recurrence,
         ...(isWwebjs
           ? {
               plainText: {
