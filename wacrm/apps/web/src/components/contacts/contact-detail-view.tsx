@@ -118,10 +118,10 @@ export function ContactDetailView({
   }, [contactId, supabase]);
 
   const fetchTags = useCallback(async () => {
-    if (!contactId) return;
+    if (!contactId || !accountId) return;
 
     const [tagsRes, contactTagsRes] = await Promise.all([
-      supabase.from('tags').select('*').order('name'),
+      supabase.from('tags').select('*').eq('account_id', accountId).order('name'),
       supabase.from('contact_tags').select('tag_id').eq('contact_id', contactId),
     ]);
 
@@ -129,7 +129,7 @@ export function ContactDetailView({
     if (contactTagsRes.data) {
       setContactTagIds(contactTagsRes.data.map((ct) => ct.tag_id));
     }
-  }, [contactId, supabase]);
+  }, [contactId, supabase, accountId]);
 
   const fetchNotes = useCallback(async () => {
     if (!contactId) return;

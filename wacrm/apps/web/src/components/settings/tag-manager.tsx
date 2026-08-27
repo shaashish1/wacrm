@@ -62,17 +62,23 @@ export function TagManager() {
       setLoading(false);
       return;
     }
-    fetchTags(user.id);
+    if (!accountId) {
+      // Wait for the profile/account context to resolve — tags are
+      // account-scoped (migration 017), so a fetch without account_id
+      // would either be RLS-blocked or return the wrong scope.
+      return;
+    }
+    fetchTags(accountId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user?.id]);
+  }, [authLoading, user?.id, accountId]);
 
-  async function fetchTags(userId: string) {
+  async function fetchTags(acctId: string) {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('tags')
         .select('*')
-        .eq('user_id', userId)
+        .eq('account_id', acctId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -112,7 +118,7 @@ export function TagManager() {
       toast.success(t('tagCreated'));
       setNewTagName('');
       setSelectedColor(PRESET_COLORS[3].value);
-      await fetchTags(user.id);
+      await fetchTags(accountId!);
     } catch (err) {
       console.error('Create error:', err);
       toast.error(t('failedToCreateTag'));

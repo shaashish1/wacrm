@@ -82,6 +82,14 @@ export class BaileysProvider implements IMessagingProvider {
   private messageJidKeys: string[] = [];
   private sessionReadyAt: Map<string, number> = new Map();
   private lidToPhone: Map<string, string> = new Map();
+  // Participant display names captured from the `contacts.upsert` /
+  // `contacts.update` Baileys events. Baileys doesn't always populate
+  // `participant.notify` / `participant.name` on the group participants
+  // payload (especially for LID-only members), so we fall back to these
+  // maps when syncing groups. Keyed by phone (digits) and LID (digits)
+  // respectively so we can resolve either path.
+  private phoneToName: Map<string, string> = new Map();
+  private lidToName: Map<string, string> = new Map();
   private lastQrCodes: Map<string, string> = new Map();
   // Per-account timers for the recurring group/participant auto-sync.
   private groupSyncTimeouts: Map<string, NodeJS.Timeout> = new Map();
@@ -354,10 +362,25 @@ export class BaileysProvider implements IMessagingProvider {
             const c = contact as any;
             const lidRaw = c.lid || (c.id?.endsWith?.('@lid') ? c.id : null);
             const phoneJid = c.jid || (isJidUser(c.id) ? c.id : null);
-            if (lidRaw && phoneJid) {
-              const lid = lidRaw.split('@')[0].split(':')[0];
-              const phone = phoneJid.split('@')[0].split(':')[0];
+
+            // Compute lid / phone as strings (or null) up front so the
+            // Map.set calls below get `string` keys/values, not the
+            // `string | null` declared on the outer lets.
+            const lid: string | null = lidRaw ? String(lidRaw).split('@')[0].split(':')[0] : null;
+            const phone: string | null = phoneJid ? String(phoneJid).split('@')[0].split(':')[0] : null;
+
+            if (lid && phone) {
               this.lidToPhone.set(lid, phone);
+            }
+
+            // Capture a display name from any source Baileys exposes
+            // (name | notify | verifiedName). Stored by phone and/or LID
+            // so group participant sync can recover names for LID-only
+            // members whose `participant.notify` is missing.
+            const name = c.name || c.notify || c.verifiedName || null;
+            if (name) {
+              if (phone) this.phoneToName.set(phone, name);
+              if (lid) this.lidToName.set(lid, name);
             }
           }
         }
@@ -787,6 +810,8 @@ export class BaileysProvider implements IMessagingProvider {
 
     let participantCount = 0;
     let phonesResolved = 0;
+    let namesResolved = 0;
+    let namesNull = 0;
 
     for (const group of entries) {
       const g = group as any;
@@ -797,14 +822,15 @@ export class BaileysProvider implements IMessagingProvider {
         for (const p of group.participants) {
           const part = p as any;
           let phone: string | null = null;
+          let lid: string | null = null;
 
           if (part.jid && part.jid.endsWith('@s.whatsapp.net')) {
-            phone = part.jid.split('@')[0].split(':')[0];
+            phone = String(part.jid).split('@')[0].split(':')[0];
           } else if (part.id.endsWith('@s.whatsapp.net')) {
-            phone = part.id.split('@')[0].split(':')[0];
+            phone = String(part.id).split('@')[0].split(':')[0];
           } else if (part.id.endsWith('@lid')) {
-            const lidRaw = part.id.split('@')[0].split(':')[0];
-            phone = this.lidToPhone.get(lidRaw) || null;
+            lid = String(part.id).split('@')[0].split(':')[0];
+            phone = lid ? (this.lidToPhone.get(lid) || null) : null;
           }
 
           if (phone) {
@@ -812,10 +838,28 @@ export class BaileysProvider implements IMessagingProvider {
             groupPhonesResolved++;
           }
 
+          // Resolve a display name from any available source, in order:
+          //   1. participant.notify / participant.name (group payload)
+          //   2. phoneToName (from contacts.upsert/update events)
+          //   3. lidToName (for LID-only members)
+          // If none is available, leave null — we do NOT fabricate names.
+          let displayName: string | null = part.notify || part.name || null;
+          if (!displayName && phone) {
+            displayName = this.phoneToName.get(phone) || null;
+          }
+          if (!displayName && lid) {
+            displayName = this.lidToName.get(lid) || null;
+          }
+          if (displayName) {
+            namesResolved++;
+          } else {
+            namesNull++;
+          }
+
           participantRows.push({
             jid: part.id,
             phone,
-            display_name: part.notify || part.name || null,
+            display_name: displayName,
             is_admin: part.admin === 'admin' || part.admin === 'superadmin',
             is_super_admin: part.admin === 'superadmin',
           });
@@ -887,9 +931,9 @@ export class BaileysProvider implements IMessagingProvider {
       }
     }
 
-    console.log(`[Baileys] Synced ${entries.length} groups, ${participantCount} participants for ${accountId} (phones resolved: ${phonesResolved}/${participantCount}, LID map: ${this.lidToPhone.size})`);
+    console.log(`[Baileys] Synced ${entries.length} groups, ${participantCount} participants for ${accountId} (phones resolved: ${phonesResolved}/${participantCount}, names resolved: ${namesResolved}/${participantCount}, names null: ${namesNull}, LID map: ${this.lidToPhone.size})`);
     // #region agent log
-    agentLog('baileys-provider.ts:syncGroups', 'group sync complete', { accountIdPrefix: accountId.slice(0, 8), groupCount: entries.length, participantCount, phonesResolved }, 'D');
+    agentLog('baileys-provider.ts:syncGroups', 'group sync complete', { accountIdPrefix: accountId.slice(0, 8), groupCount: entries.length, participantCount, phonesResolved, namesResolved, namesNull }, 'D');
     // #endregion
     return { groupCount: entries.length, participantCount };
   }

@@ -26,6 +26,8 @@
     "flows": "플로우",
     "aiAgents": "AI 에이전트",
     "waGroups": "WA 그룹",
+    "contactGroups": "연락처 그룹",
+    "campaigns": "캠페인",
     "settings": "설정",
     "beta": "베타",
     "unreadConversations": "읽지 않은 대화 {count}건",
