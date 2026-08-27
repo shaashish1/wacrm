@@ -6,6 +6,7 @@ import Script from "next/script";
 import { Suspense } from "react";
 import { PostHogProvider, PostHogPageView } from "@/components/providers/posthog-provider";
 import "./globals.css";
+import { PrefetchDashboardRoutes } from "@/components/layout/prefetch-dashboard-routes";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { ThemedToaster } from "@/components/themed-toaster";
 import {
@@ -116,6 +117,7 @@ export default async function RootLayout({
         <PostHogProvider>
           <NextIntlClientProvider messages={messages} locale={locale}>
             <ThemeProvider>
+              <PrefetchDashboardRoutes />
               {children}
               <ThemedToaster />
             </ThemeProvider>

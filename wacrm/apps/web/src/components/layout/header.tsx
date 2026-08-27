@@ -114,6 +114,7 @@ export function Header({ onOpenSidebar }: HeaderProps) {
             render={
               <Link
                 href="/settings?tab=profile"
+                prefetch
                 className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"
               />
             }
@@ -125,6 +126,7 @@ export function Header({ onOpenSidebar }: HeaderProps) {
             render={
               <Link
                 href="/settings?tab=whatsapp"
+                prefetch
                 className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"
               />
             }
