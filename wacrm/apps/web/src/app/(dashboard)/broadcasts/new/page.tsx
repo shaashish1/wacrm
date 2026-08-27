@@ -1,37 +1,75 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { MessageTemplate } from '@/types';
 import { Step1ChooseTemplate } from '@/components/broadcasts/step1-choose-template';
+import {
+  Step1ComposePlain,
+  type PlainTextDraft,
+} from '@/components/broadcasts/step1-compose-plain';
 import { Step2SelectAudience } from '@/components/broadcasts/step2-select-audience';
 import { Step3Personalize } from '@/components/broadcasts/step3-personalize';
 import { Step4ScheduleSend } from '@/components/broadcasts/step4-schedule-send';
-import { useBroadcastSending } from '@/hooks/use-broadcast-sending';
-import { Check } from 'lucide-react';
+import {
+  resolveProviderType,
+  useBroadcastSending,
+  type ProviderType,
+} from '@/hooks/use-broadcast-sending';
+import { Check, Loader2, ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 
-const steps = [
+const cloudSteps = [
   { label: 'template', key: 'template' },
   { label: 'audience', key: 'audience' },
   { label: 'personalize', key: 'personalize' },
   { label: 'send', key: 'send' },
 ] as const;
 
+const wwebjsSteps = [
+  { label: 'compose', key: 'compose' },
+  { label: 'audience', key: 'audience' },
+  { label: 'send', key: 'send' },
+] as const;
+
 export default function NewBroadcastPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <NewBroadcastWizard />
+    </Suspense>
+  );
+}
+
+function NewBroadcastWizard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const draftId = searchParams.get('draft');
   const t = useTranslations('Broadcasts.new');
   const { accountId } = useAuth();
   const { createAndSendBroadcast, isProcessing, progress } = useBroadcastSending();
 
+  const [providerType, setProviderType] = useState<ProviderType | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [template, setTemplate] = useState<MessageTemplate | null>(null);
+  const [plainDraft, setPlainDraft] = useState<PlainTextDraft>({
+    body: '',
+    mediaUrl: '',
+    mediaKind: 'image',
+  });
   const [audience, setAudience] = useState<{
-    type: 'all' | 'tags' | 'custom_field' | 'csv';
+    type: 'all' | 'tags' | 'custom_field' | 'csv' | 'group';
     tagIds?: string[];
+    groupIds?: string[];
     customField?: {
       fieldId: string;
       operator: 'is' | 'is_not' | 'contains';
@@ -46,22 +84,107 @@ export default function NewBroadcastPage() {
   const [headerMediaUrl, setHeaderMediaUrl] = useState('');
   const [name, setName] = useState('');
 
-  async function handleSend() {
-    if (!template) return;
+  useEffect(() => {
+    if (!accountId) return;
+    let cancelled = false;
+    resolveProviderType(accountId).then((type) => {
+      if (!cancelled) setProviderType(type);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId]);
+
+  useEffect(() => {
+    if (!draftId || !accountId) return;
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('broadcasts')
+        .select('*')
+        .eq('id', draftId)
+        .eq('status', 'draft')
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setName(data.name ?? '');
+      const filter = (data.audience_filter ?? {}) as typeof audience;
+      setAudience({
+        type: filter.type === 'group' || filter.type === 'tags' || filter.type === 'custom_field' || filter.type === 'csv'
+          ? filter.type
+          : 'all',
+        tagIds: filter.tagIds,
+        groupIds: filter.groupIds,
+        customField: filter.customField,
+        excludeTagIds: filter.excludeTagIds,
+      });
+      if (data.template_name === 'plain_text') {
+        const vars = (data.template_variables ?? {}) as {
+          body?: string;
+          mediaUrl?: string;
+          mediaKind?: PlainTextDraft['mediaKind'];
+        };
+        setPlainDraft({
+          body: vars.body ?? '',
+          mediaUrl: vars.mediaUrl ?? '',
+          mediaKind: vars.mediaKind ?? 'image',
+        });
+      } else {
+        const vars = (data.template_variables ?? {}) as Record<
+          string,
+          { type: 'static' | 'field' | 'custom_field'; value: string }
+        >;
+        setVariables(vars);
+        const supabase2 = createClient();
+        const { data: tmpl } = await supabase2
+          .from('message_templates')
+          .select('*')
+          .eq('account_id', accountId)
+          .eq('name', data.template_name)
+          .eq('language', data.template_language ?? 'en_US')
+          .maybeSingle();
+        if (!cancelled && tmpl) setTemplate(tmpl as MessageTemplate);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [draftId, accountId]);
+
+  const isWwebjs = providerType === 'wwebjs';
+  const steps = isWwebjs ? wwebjsSteps : cloudSteps;
+
+  async function handleSend(scheduledAt?: string | null) {
+    if (isWwebjs) {
+      if (!plainDraft.body.trim()) return;
+    } else if (!template) {
+      return;
+    }
 
     try {
       const broadcastId = await createAndSendBroadcast({
         name,
-        template,
+        template: isWwebjs ? null : template,
         audience: {
           type: audience.type,
           tagIds: audience.tagIds,
+          groupIds: audience.groupIds,
           customField: audience.customField,
           csvContacts: audience.csvContacts,
           excludeTagIds: audience.excludeTagIds,
         },
         variables,
         headerMediaUrl,
+        scheduledAt,
+        ...(isWwebjs
+          ? {
+              plainText: {
+                body: plainDraft.body,
+                mediaUrl: plainDraft.mediaUrl.trim() || undefined,
+                mediaKind: plainDraft.mediaKind,
+              },
+            }
+          : {}),
       });
       router.push(`/broadcasts/${broadcastId}`);
     } catch (err) {
@@ -83,7 +206,15 @@ export default function NewBroadcastPage() {
    * A full resume-draft UX is a future polish.
    */
   async function handleSaveDraft() {
-    if (!template || !name.trim()) {
+    if (!name.trim()) {
+      toast.error(t('toastGiveName'));
+      return;
+    }
+    if (!isWwebjs && !template) {
+      toast.error(t('toastGiveName'));
+      return;
+    }
+    if (isWwebjs && !plainDraft.body.trim()) {
       toast.error(t('toastGiveName'));
       return;
     }
@@ -105,12 +236,21 @@ export default function NewBroadcastPage() {
       user_id: user.id,
       account_id: accountId,
       name: name.trim(),
-      template_name: template.name,
-      template_language: template.language ?? 'en_US',
-      template_variables: variables,
+      template_name: isWwebjs ? 'plain_text' : template!.name,
+      template_language: isWwebjs ? 'en' : (template!.language ?? 'en_US'),
+      template_variables: isWwebjs
+        ? {
+            body: plainDraft.body,
+            mediaUrl: plainDraft.mediaUrl.trim() || null,
+            mediaKind: plainDraft.mediaKind,
+          }
+        : variables,
       audience_filter: {
         type: audience.type,
         tagIds: audience.tagIds,
+        groupIds: audience.groupIds,
+        customField: audience.customField,
+        excludeTagIds: audience.excludeTagIds,
       },
       status: 'draft',
       total_recipients: 0,
@@ -129,13 +269,28 @@ export default function NewBroadcastPage() {
     router.push('/broadcasts');
   }
 
+  if (!providerType) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       {/* Header */}
       <div>
+        <Link
+          href="/broadcasts"
+          className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          {t('backToList')}
+        </Link>
         <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t('subtitle')}
+          {isWwebjs ? t('subtitleWwebjs') : t('subtitle')}
         </p>
       </div>
 
@@ -188,45 +343,82 @@ export default function NewBroadcastPage() {
             pointerEvents: isProcessing ? 'none' : 'auto',
           }}
         >
-          {currentStep === 0 && (
-            <Step1ChooseTemplate
-              selectedTemplate={template}
-              onSelect={setTemplate}
-              onNext={() => setCurrentStep(1)}
-              onBack={() => router.push('/broadcasts')}
-            />
-          )}
-          {currentStep === 1 && (
-            <Step2SelectAudience
-              audience={audience}
-              onUpdate={setAudience}
-              onNext={() => setCurrentStep(2)}
-              onBack={() => setCurrentStep(0)}
-            />
-          )}
-          {currentStep === 2 && template && (
-            <Step3Personalize
-              template={template}
-              variables={variables}
-              onUpdate={setVariables}
-              headerMediaUrl={headerMediaUrl}
-              onHeaderMediaUrlChange={setHeaderMediaUrl}
-              onNext={() => setCurrentStep(3)}
-              onBack={() => setCurrentStep(1)}
-            />
-          )}
-          {currentStep === 3 && template && (
-            <Step4ScheduleSend
-              name={name}
-              onNameChange={setName}
-              template={template}
-              audience={audience}
-              onSend={handleSend}
-              onSaveDraft={handleSaveDraft}
-              onBack={() => setCurrentStep(2)}
-              isProcessing={isProcessing}
-              progress={progress}
-            />
+          {isWwebjs ? (
+            <>
+              {currentStep === 0 && (
+                <Step1ComposePlain
+                  draft={plainDraft}
+                  onChange={setPlainDraft}
+                  onNext={() => setCurrentStep(1)}
+                  onBack={() => router.push('/broadcasts')}
+                />
+              )}
+              {currentStep === 1 && (
+                <Step2SelectAudience
+                  audience={audience}
+                  onUpdate={setAudience}
+                  onNext={() => setCurrentStep(2)}
+                  onBack={() => setCurrentStep(0)}
+                />
+              )}
+              {currentStep === 2 && (
+                <Step4ScheduleSend
+                  name={name}
+                  onNameChange={setName}
+                  isPlainText
+                  plainTextPreview={plainDraft.body}
+                  audience={audience}
+                  onSend={handleSend}
+                  onSaveDraft={handleSaveDraft}
+                  onBack={() => setCurrentStep(1)}
+                  isProcessing={isProcessing}
+                  progress={progress}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              {currentStep === 0 && (
+                <Step1ChooseTemplate
+                  selectedTemplate={template}
+                  onSelect={setTemplate}
+                  onNext={() => setCurrentStep(1)}
+                  onBack={() => router.push('/broadcasts')}
+                />
+              )}
+              {currentStep === 1 && (
+                <Step2SelectAudience
+                  audience={audience}
+                  onUpdate={setAudience}
+                  onNext={() => setCurrentStep(2)}
+                  onBack={() => setCurrentStep(0)}
+                />
+              )}
+              {currentStep === 2 && template && (
+                <Step3Personalize
+                  template={template}
+                  variables={variables}
+                  onUpdate={setVariables}
+                  headerMediaUrl={headerMediaUrl}
+                  onHeaderMediaUrlChange={setHeaderMediaUrl}
+                  onNext={() => setCurrentStep(3)}
+                  onBack={() => setCurrentStep(1)}
+                />
+              )}
+              {currentStep === 3 && template && (
+                <Step4ScheduleSend
+                  name={name}
+                  onNameChange={setName}
+                  template={template}
+                  audience={audience}
+                  onSend={handleSend}
+                  onSaveDraft={handleSaveDraft}
+                  onBack={() => setCurrentStep(2)}
+                  isProcessing={isProcessing}
+                  progress={progress}
+                />
+              )}
+            </>
           )}
         </div>
       </div>

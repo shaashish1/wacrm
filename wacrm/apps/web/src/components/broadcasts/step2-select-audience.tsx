@@ -14,10 +14,11 @@ import {
   ArrowRight,
   ArrowLeft,
   X,
+  FolderOpen,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-type AudienceType = 'all' | 'tags' | 'custom_field' | 'csv';
+type AudienceType = 'all' | 'tags' | 'custom_field' | 'csv' | 'group';
 type CustomFieldOperator = 'is' | 'is_not' | 'contains';
 
 interface CustomFieldFilter {
@@ -29,6 +30,7 @@ interface CustomFieldFilter {
 interface AudienceConfig {
   type: AudienceType;
   tagIds?: string[];
+  groupIds?: string[];
   customField?: CustomFieldFilter;
   csvContacts?: { phone: string; name?: string }[];
   excludeTagIds?: string[];
@@ -81,6 +83,12 @@ export function Step2SelectAudience({
       icon: Filter,
     },
     {
+      type: 'group',
+      label: t('selectAudience.method.group'),
+      description: t('selectAudience.groupDesc'),
+      icon: FolderOpen,
+    },
+    {
       type: 'csv',
       label: t('selectAudience.method.csv'),
       description: t('selectAudience.csvDesc'),
@@ -88,6 +96,7 @@ export function Step2SelectAudience({
     },
   ], [t]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [groups, setGroups] = useState<{ id: string; name: string; is_smart?: boolean }[]>([]);
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [loadingTags, setLoadingTags] = useState(false);
   const [loadingFields, setLoadingFields] = useState(false);
@@ -115,9 +124,23 @@ export function Step2SelectAudience({
     fetchTags();
   }, [accountId]);
 
+  useEffect(() => {
+    if (!accountId) return;
+    async function fetchGroups() {
+      try {
+        const res = await fetch('/api/contact-groups');
+        const json = await res.json();
+        setGroups(json.data ?? []);
+      } catch {
+        setGroups([]);
+      }
+    }
+    fetchGroups();
+  }, [accountId]);
+
   // Lazy-load custom fields only when that audience type is active.
   useEffect(() => {
-    if (audience.type !== 'custom_field') return;
+    if (audience.type !== 'custom_field' || !accountId) return;
     async function fetchFields() {
       setLoadingFields(true);
       try {
@@ -125,6 +148,7 @@ export function Step2SelectAudience({
         const { data } = await supabase
           .from('custom_fields')
           .select('*')
+          .eq('account_id', accountId)
           .order('field_name');
         setCustomFields(data ?? []);
       } finally {
@@ -132,7 +156,7 @@ export function Step2SelectAudience({
       }
     }
     fetchFields();
-  }, [audience.type]);
+  }, [audience.type, accountId]);
 
   const fetchEstimatedCount = useCallback(async () => {
     setLoadingCount(true);
@@ -176,6 +200,21 @@ export function Step2SelectAudience({
       ) {
         setEstimatedCount(audience.csvContacts.length);
         return;
+      } else if (
+        audience.type === 'group' &&
+        audience.groupIds &&
+        audience.groupIds.length > 0
+      ) {
+        const idSet = new Set<string>();
+        for (const groupId of audience.groupIds) {
+          const { data } = await supabase.rpc('resolve_group_members', {
+            p_group_id: groupId,
+          });
+          for (const row of data ?? []) {
+            if (row.contact_id) idSet.add(row.contact_id);
+          }
+        }
+        baseIds = idSet;
       } else {
         // Partially-configured audience — wait for the user to finish.
         setEstimatedCount(null);
@@ -213,6 +252,7 @@ export function Step2SelectAudience({
     audience.tagIds,
     audience.customField,
     audience.csvContacts,
+    audience.groupIds,
     audience.excludeTagIds,
   ]);
 
@@ -226,6 +266,14 @@ export function Step2SelectAudience({
       ? current.filter((id) => id !== tagId)
       : [...current, tagId];
     onUpdate({ ...audience, tagIds: updated });
+  }
+
+  function toggleGroup(groupId: string) {
+    const current = audience.groupIds ?? [];
+    const updated = current.includes(groupId)
+      ? current.filter((id) => id !== groupId)
+      : [...current, groupId];
+    onUpdate({ ...audience, groupIds: updated });
   }
 
   function toggleExcludeTag(tagId: string) {
@@ -253,7 +301,10 @@ export function Step2SelectAudience({
       audience.customField.value.length > 0) ||
     (audience.type === 'csv' &&
       audience.csvContacts &&
-      audience.csvContacts.length > 0);
+      audience.csvContacts.length > 0) ||
+    (audience.type === 'group' &&
+      audience.groupIds &&
+      audience.groupIds.length > 0);
 
   return (
     <div className="space-y-6">
@@ -278,6 +329,7 @@ export function Step2SelectAudience({
                   // Wipe shape fields from other types to avoid stale
                   // config leaking across selections.
                   tagIds: option.type === 'tags' ? audience.tagIds : undefined,
+                  groupIds: option.type === 'group' ? audience.groupIds : undefined,
                   customField:
                     option.type === 'custom_field'
                       ? audience.customField
@@ -340,6 +392,39 @@ export function Step2SelectAudience({
                       style={{ backgroundColor: tag.color }}
                     />
                     {tag.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {audience.type === 'group' && (
+        <div className="rounded-xl border border-border bg-card/50 p-4">
+          <p className="mb-3 text-sm font-medium text-foreground">
+            {t('selectAudience.selectGroups')}
+          </p>
+          {groups.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {t('selectAudience.noGroupsFound')}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {groups.map((group) => {
+                const isSelected = audience.groupIds?.includes(group.id);
+                return (
+                  <button
+                    key={group.id}
+                    onClick={() => toggleGroup(group.id)}
+                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                      isSelected
+                        ? 'border-primary/30 bg-primary/10 text-primary'
+                        : 'border-border bg-muted text-muted-foreground hover:border-border'
+                    }`}
+                  >
+                    {group.name}
+                    {group.is_smart ? ' · smart' : ''}
                   </button>
                 );
               })}

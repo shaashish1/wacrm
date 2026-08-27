@@ -60,6 +60,23 @@ export async function PATCH(request: Request, { params }: Params) {
     if (error) throw error;
     if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+    if (Array.isArray(body.steps)) {
+      await supabase.from('campaign_steps').delete().eq('campaign_id', id);
+      if (body.steps.length > 0) {
+        const rows = body.steps.map((s: Record<string, unknown>, i: number) => ({
+          campaign_id: id,
+          position: typeof s.position === 'number' ? s.position : i + 1,
+          channel: s.channel === 'whatsapp' ? 'whatsapp' : 'email',
+          delay_hours: Number(s.delay_hours) || 0,
+          whatsapp_template_name: s.whatsapp_template_name ?? s.body_text ?? null,
+          email_template_id: s.email_template_id ?? null,
+          exit_on_reply: s.exit_on_reply !== false,
+        }));
+        const { error: stepsErr } = await supabase.from('campaign_steps').insert(rows);
+        if (stepsErr) throw stepsErr;
+      }
+    }
+
     return NextResponse.json({ data });
   } catch (err) {
     return toErrorResponse(err);

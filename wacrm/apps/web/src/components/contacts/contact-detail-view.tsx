@@ -150,7 +150,7 @@ export function ContactDetailView({
     setLoadingCustom(true);
 
     const [fieldsRes, valuesRes] = await Promise.all([
-      supabase.from('custom_fields').select('*').order('field_name'),
+      supabase.from('custom_fields').select('*').eq('account_id', accountId).order('field_name'),
       supabase
         .from('contact_custom_values')
         .select('*')
@@ -166,7 +166,7 @@ export function ContactDetailView({
       setCustomValues(map);
     }
     setLoadingCustom(false);
-  }, [contactId, supabase]);
+  }, [contactId, supabase, accountId]);
 
   const fetchDeals = useCallback(async () => {
     if (!contactId) return;

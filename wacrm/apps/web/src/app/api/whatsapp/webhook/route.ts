@@ -9,6 +9,7 @@ import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
+import { isOptOutText } from '@/lib/opt-out'
 import {
   handleTemplateWebhookChange,
   isTemplateWebhookField,
@@ -759,6 +760,13 @@ async function processMessage(
   // Fire-and-forget: a slow or failing automation must not block the
   // webhook's 200 OK response to Meta.
   const inboundText = contentText ?? message.text?.body ?? ''
+
+  if (isOptOutText(inboundText) && contactRecord?.id) {
+    await supabaseAdmin()
+      .from('contacts')
+      .update({ opted_out: true, opted_out_at: new Date().toISOString() })
+      .eq('id', contactRecord.id)
+  }
   const automationTriggers: (
     | 'new_contact_created'
     | 'first_inbound_message'

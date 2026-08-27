@@ -10,6 +10,7 @@ import {
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
+import { useAuth } from "@/hooks/use-auth"
 import {
   ArrowLeft,
   ChevronDown,
@@ -238,6 +239,7 @@ function useResources(): AutomationResources {
 }
 
 function ResourcesProvider({ children }: { children: ReactNode }) {
+  const { accountId } = useAuth()
   const [tags, setTags] = useState<TagRecord[]>([])
   const [members, setMembers] = useState<AccountMember[]>([])
   const [templates, setTemplates] = useState<MessageTemplate[]>([])
@@ -246,6 +248,7 @@ function ResourcesProvider({ children }: { children: ReactNode }) {
   const [stages, setStages] = useState<PipelineStageOption[]>([])
 
   useEffect(() => {
+    if (!accountId) return
     let cancelled = false
     const supabase = createClient()
 
@@ -256,13 +259,13 @@ function ResourcesProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const [tagsRes, templatesRes, customFieldsRes, pipelinesRes, stagesRes] =
         await Promise.all([
-          supabase.from("tags").select("*").order("name"),
+          supabase.from("tags").select("*").eq("account_id", accountId).order("name"),
           supabase
             .from("message_templates")
             .select("*")
             .eq("status", "APPROVED")
             .order("name"),
-          supabase.from("custom_fields").select("*").order("field_name"),
+          supabase.from("custom_fields").select("*").eq("account_id", accountId).order("field_name"),
           supabase.from("pipelines").select("id, name").order("name"),
           supabase
             .from("pipeline_stages")
@@ -294,7 +297,7 @@ function ResourcesProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [accountId])
 
   return (
     <ResourcesContext.Provider

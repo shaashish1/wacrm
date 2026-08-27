@@ -57,6 +57,9 @@ export interface SendOptions {
   templateRow?: any;
   messageParams?: any;
   params?: string[];
+  /** Set when this send is part of a wwebjs broadcast fan-out. */
+  broadcastRecipientId?: string;
+  broadcastId?: string;
 }
 
 export interface InboundMessage {

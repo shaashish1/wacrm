@@ -108,6 +108,8 @@ export interface Contact {
   email?: string;
   company?: string;
   avatar_url?: string;
+  opted_out?: boolean;
+  opted_out_at?: string;
   created_at: string;
   updated_at: string;
   /** Hydrated by queries that embed `contact_tags(tags(*))` (e.g. the
@@ -187,7 +189,11 @@ export interface Conversation {
 // Notifications (migration 027)
 // ============================================================
 
-export type NotificationType = 'conversation_assigned';
+export type NotificationType =
+  | 'conversation_assigned'
+  | 'broadcast_sent'
+  | 'broadcast_failed'
+  | 'broadcast_scheduled';
 
 export interface Notification {
   id: string;
@@ -379,7 +385,14 @@ export interface Deal {
 }
 
 export type BroadcastStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';
-export type RecipientStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'replied' | 'failed';
+export type RecipientStatus =
+  | 'pending'
+  | 'queued'
+  | 'sent'
+  | 'delivered'
+  | 'read'
+  | 'replied'
+  | 'failed';
 
 export interface Broadcast {
   id: string;
@@ -398,6 +411,7 @@ export interface Broadcast {
   replied_count: number;
   failed_count: number;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface BroadcastRecipient {

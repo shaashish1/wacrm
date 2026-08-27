@@ -51,6 +51,20 @@ export async function POST(request: Request) {
       .single();
 
     if (error) throw error;
+
+    if (Array.isArray(body.steps) && body.steps.length > 0 && data?.id) {
+      const rows = body.steps.map((s: Record<string, unknown>, i: number) => ({
+        campaign_id: data.id,
+        position: typeof s.position === 'number' ? s.position : i + 1,
+        channel: s.channel === 'whatsapp' ? 'whatsapp' : 'email',
+        delay_hours: Number(s.delay_hours) || 0,
+        whatsapp_template_name: s.whatsapp_template_name ?? s.body_text ?? null,
+        email_template_id: s.email_template_id ?? null,
+        exit_on_reply: s.exit_on_reply !== false,
+      }));
+      await supabase.from('campaign_steps').insert(rows);
+    }
+
     return NextResponse.json({ data });
   } catch (err) {
     return toErrorResponse(err);

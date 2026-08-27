@@ -55,6 +55,9 @@ export default function CampaignsPage() {
   
   const [name, setName] = useState('');
   const [channel, setChannel] = useState('email');
+  const [steps, setSteps] = useState<
+    { delay_hours: number; channel: string; body_text: string }[]
+  >([]);
 
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
@@ -79,13 +82,30 @@ export default function CampaignsPage() {
     setEditCampaign(null);
     setName('');
     setChannel('email');
+    setSteps([{ delay_hours: 0, channel: 'whatsapp', body_text: '' }]);
     setFormOpen(true);
   }
 
-  function openEditForm(campaign: any) {
+  async function openEditForm(campaign: any) {
     setEditCampaign(campaign);
     setName(campaign.name || '');
     setChannel(campaign.channel || 'email');
+    try {
+      const res = await fetch(`/api/campaigns/${campaign.id}`);
+      const json = await res.json();
+      const loaded = (json.data?.campaign_steps ?? []) as any[];
+      setSteps(
+        loaded.length > 0
+          ? loaded.map((s) => ({
+              delay_hours: s.delay_hours ?? 0,
+              channel: s.channel || 'whatsapp',
+              body_text: s.whatsapp_template_name || '',
+            }))
+          : [{ delay_hours: 0, channel: 'whatsapp', body_text: '' }],
+      );
+    } catch {
+      setSteps([{ delay_hours: 0, channel: 'whatsapp', body_text: '' }]);
+    }
     setFormOpen(true);
   }
 
@@ -99,7 +119,16 @@ export default function CampaignsPage() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, channel })
+        body: JSON.stringify({
+          name,
+          channel,
+          steps: steps.map((s, i) => ({
+            position: i + 1,
+            channel: s.channel,
+            delay_hours: s.delay_hours,
+            whatsapp_template_name: s.body_text,
+          })),
+        })
       });
 
       if (!res.ok) throw new Error('Failed to save');
@@ -275,6 +304,96 @@ export default function CampaignsPage() {
                 <option value="whatsapp">WhatsApp</option>
                 <option value="multi">Multi-channel</option>
               </select>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Steps</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setSteps((prev) => [
+                      ...prev,
+                      { delay_hours: 24, channel: 'whatsapp', body_text: '' },
+                    ])
+                  }
+                >
+                  Add step
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Each step waits delay hours, then sends the WhatsApp text (or email template id). Recurring campaigns are not implemented.
+              </p>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {steps.map((step, idx) => (
+                  <div key={idx} className="rounded-md border border-border p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Step {idx + 1}</span>
+                      {steps.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSteps((prev) => prev.filter((_, i) => i !== idx))}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Delay (hours)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={step.delay_hours}
+                          onChange={(e) =>
+                            setSteps((prev) =>
+                              prev.map((s, i) =>
+                                i === idx ? { ...s, delay_hours: Number(e.target.value) || 0 } : s,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Channel</Label>
+                        <select
+                          className="w-full h-9 rounded-md border bg-background px-2 text-sm"
+                          value={step.channel}
+                          onChange={(e) =>
+                            setSteps((prev) =>
+                              prev.map((s, i) =>
+                                i === idx ? { ...s, channel: e.target.value } : s,
+                              ),
+                            )
+                          }
+                        >
+                          <option value="whatsapp">WhatsApp text</option>
+                          <option value="email">Email</option>
+                        </select>
+                      </div>
+                    </div>
+                    {step.channel === 'whatsapp' && (
+                      <div>
+                        <Label className="text-xs">Message text</Label>
+                        <Input
+                          value={step.body_text}
+                          onChange={(e) =>
+                            setSteps((prev) =>
+                              prev.map((s, i) =>
+                                i === idx ? { ...s, body_text: e.target.value } : s,
+                              ),
+                            )
+                          }
+                          placeholder="Hi {{name}}, …"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           <DialogFooter>

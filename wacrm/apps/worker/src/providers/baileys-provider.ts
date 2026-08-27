@@ -382,6 +382,7 @@ export class BaileysProvider implements IMessagingProvider {
               if (phone) this.phoneToName.set(phone, name);
               if (lid) this.lidToName.set(lid, name);
             }
+            this.scheduleAddressBookFlush(accountId);
           }
         }
       }
@@ -951,6 +952,9 @@ export class BaileysProvider implements IMessagingProvider {
       this.autoSyncGroups(accountId).catch((err) =>
         console.error(`[Baileys] Initial auto group sync failed for ${accountId}:`, err),
       );
+      this.syncAddressBook(accountId).catch((err) =>
+        console.error(`[Baileys] Initial address-book sync failed for ${accountId}:`, err),
+      );
     }, GROUP_SYNC_DELAY_MS);
     this.groupSyncTimeouts.set(accountId, initial);
 
@@ -1120,5 +1124,118 @@ export class BaileysProvider implements IMessagingProvider {
     }
 
     return { contactsUpserted: toInsert.length, tagged: tagRows.length };
+  }
+
+  private addressBookFlushTimers = new Map<string, NodeJS.Timeout>();
+
+  private scheduleAddressBookFlush(accountId: string) {
+    const existing = this.addressBookFlushTimers.get(accountId);
+    if (existing) clearTimeout(existing);
+    const timer = setTimeout(() => {
+      this.addressBookFlushTimers.delete(accountId);
+      this.syncAddressBook(accountId).catch((err) =>
+        console.error(`[Baileys] Address-book flush failed for ${accountId}:`, err),
+      );
+    }, 2500);
+    this.addressBookFlushTimers.set(accountId, timer);
+  }
+
+  /**
+   * Upsert Baileys address-book entries into `contacts` by
+   * (account_id, phone_normalized). Empty names never overwrite an
+   * existing contact name. Used on connect, contacts.upsert, and the
+   * explicit POST /api/whatsapp/contacts/sync job.
+   */
+  async syncAddressBook(accountId: string): Promise<{ upserted: number; updated: number }> {
+    const sock = this.sockets.get(accountId);
+    const collected = new Map<string, string | null>();
+
+    const storeContacts = (sock as any)?.store?.contacts as
+      | Record<string, { id?: string; name?: string; notify?: string; verifiedName?: string }>
+      | undefined;
+    if (storeContacts) {
+      for (const c of Object.values(storeContacts)) {
+        const jid = c.id || '';
+        if (!isJidUser(jid)) continue;
+        const phone = String(jid).split('@')[0].split(':')[0];
+        if (!phone || !/^\d{7,15}$/.test(phone)) continue;
+        collected.set(phone, c.name || c.notify || c.verifiedName || null);
+      }
+    }
+
+    for (const [phone, name] of this.phoneToName.entries()) {
+      if (!phone || !/^\d{7,15}$/.test(phone)) continue;
+      if (!collected.has(phone) || name) collected.set(phone, name);
+    }
+
+    for (const [lid, phone] of this.lidToPhone.entries()) {
+      if (!phone || !/^\d{7,15}$/.test(phone)) continue;
+      const name = this.lidToName.get(lid) || this.phoneToName.get(phone) || null;
+      if (!collected.has(phone) || name) collected.set(phone, name);
+    }
+
+    if (collected.size === 0) {
+      console.log(`[Baileys] Address book empty for ${accountId}`);
+      return { upserted: 0, updated: 0 };
+    }
+
+    const { data: account } = await this.supabase
+      .from('accounts')
+      .select('owner_user_id')
+      .eq('id', accountId)
+      .maybeSingle();
+    const ownerId = account?.owner_user_id;
+    if (!ownerId) return { upserted: 0, updated: 0 };
+
+    const phones = [...collected.keys()];
+    const existingByNorm = new Map<string, { id: string; name: string | null }>();
+    for (let i = 0; i < phones.length; i += 1000) {
+      const chunk = phones.slice(i, i + 1000);
+      const { data: existing } = await this.supabase
+        .from('contacts')
+        .select('id, phone, name, phone_normalized')
+        .eq('account_id', accountId)
+        .in('phone_normalized', chunk);
+      for (const row of existing ?? []) {
+        const norm = row.phone_normalized || String(row.phone).replace(/\D/g, '');
+        existingByNorm.set(norm, { id: row.id, name: row.name });
+      }
+    }
+
+    const toInsert: { phone: string; name: string | null; account_id: string; user_id: string }[] = [];
+    const toName: { id: string; name: string }[] = [];
+    for (const [phone, name] of collected.entries()) {
+      const existing = existingByNorm.get(phone);
+      if (!existing) {
+        toInsert.push({
+          phone,
+          name: name || null,
+          account_id: accountId,
+          user_id: ownerId,
+        });
+        continue;
+      }
+      if (name && !existing.name?.trim()) {
+        toName.push({ id: existing.id, name });
+      }
+    }
+
+    const CHUNK = 200;
+    for (let i = 0; i < toInsert.length; i += CHUNK) {
+      const { error } = await this.supabase
+        .from('contacts')
+        .insert(toInsert.slice(i, i + CHUNK));
+      if (error) {
+        console.error('[Baileys] Address-book insert failed:', error.message);
+      }
+    }
+    for (const row of toName) {
+      await this.supabase.from('contacts').update({ name: row.name }).eq('id', row.id);
+    }
+
+    console.log(
+      `[Baileys] Address-book sync for ${accountId}: inserted ${toInsert.length}, named ${toName.length} (from ${collected.size} WA contacts)`,
+    );
+    return { upserted: toInsert.length, updated: toName.length };
   }
 }

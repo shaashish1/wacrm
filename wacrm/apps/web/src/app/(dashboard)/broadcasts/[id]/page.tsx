@@ -114,6 +114,7 @@ function FunnelChart({ steps }: { steps: FunnelStep[] }) {
 
 const RECIPIENT_STATUSES: readonly RecipientStatus[] = [
   'pending',
+  'queued',
   'sent',
   'delivered',
   'read',

@@ -186,6 +186,7 @@ export default function WaGroupsPage() {
   const [groups, setGroups] = useState<WaGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncingContacts, setSyncingContacts] = useState(false);
   const [search, setSearch] = useState('');
 
   const [selectedGroup, setSelectedGroup] = useState<WaGroup | null>(
@@ -256,6 +257,19 @@ export default function WaGroupsPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchGroups();
   }, [fetchGroups]);
+
+  async function handleSyncContacts() {
+    setSyncingContacts(true);
+    try {
+      const res = await fetch('/api/whatsapp/contacts/sync', { method: 'POST' });
+      if (!res.ok) throw new Error('Sync failed');
+      toast.success(t('syncContactsQueued'));
+    } catch {
+      toast.error(t('syncContactsError'));
+    } finally {
+      setSyncingContacts(false);
+    }
+  }
 
   async function handleSync() {
     setSyncing(true);
@@ -1021,6 +1035,19 @@ export default function WaGroupsPage() {
               {t('importAllBtn')}
             </Button>
           )}
+          <Button
+            variant="outline"
+            onClick={handleSyncContacts}
+            disabled={syncingContacts}
+            className="border-border text-muted-foreground hover:bg-muted"
+          >
+            {syncingContacts ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <UserPlus className="size-4" />
+            )}
+            {t('syncContactsBtn')}
+          </Button>
           <Button
             onClick={handleSync}
             disabled={syncing}

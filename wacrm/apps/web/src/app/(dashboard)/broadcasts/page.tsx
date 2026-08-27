@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { formatDistanceToNow } from 'date-fns';
 import { createClient } from '@/lib/supabase/client';
 import { Broadcast } from '@/types';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -13,11 +15,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Radio, Plus, Loader2 } from 'lucide-react';
+import { Radio, Plus, Loader2, Pencil } from 'lucide-react';
+import { toast } from 'sonner';
 import { useCan } from '@/hooks/use-can';
 import { GatedButton } from '@/components/ui/gated-button';
 import { getBroadcastStatus } from '@/lib/broadcast-status';
 import { useTranslations } from 'next-intl';
+import { cn } from '@/lib/utils';
 
 /**
  * Poll cadence while any broadcast is sending. Kept modest so we don't
@@ -57,6 +61,50 @@ function RateCell({
   );
 }
 
+function messageLabel(broadcast: Broadcast, plainText: string): string {
+  if (broadcast.template_name === 'plain_text') return plainText;
+  return broadcast.template_name || plainText;
+}
+
+function lastActivityIso(broadcast: Broadcast): string {
+  if (broadcast.status === 'scheduled' && broadcast.scheduled_at) {
+    return broadcast.scheduled_at;
+  }
+  return broadcast.updated_at || broadcast.created_at;
+}
+
+function NewBroadcastLink({
+  canCreate,
+  className,
+  label,
+}: {
+  canCreate: boolean;
+  className?: string;
+  label: string;
+}) {
+  if (!canCreate) {
+    return (
+      <GatedButton
+        canAct={false}
+        gateReason="create broadcasts"
+        className={className}
+      >
+        <Plus className="h-4 w-4" />
+        {label}
+      </GatedButton>
+    );
+  }
+  return (
+    <Link
+      href="/broadcasts/new"
+      className={cn(buttonVariants(), className)}
+    >
+      <Plus className="h-4 w-4" />
+      {label}
+    </Link>
+  );
+}
+
 export default function BroadcastsPage() {
   const router = useRouter();
   const t = useTranslations('Broadcasts.page');
@@ -65,8 +113,9 @@ export default function BroadcastsPage() {
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const broadcastsRef = useRef<Broadcast[]>([]);
+  broadcastsRef.current = broadcasts;
 
-  // Used to kick off polling only while something is actively sending.
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function fetchBroadcasts() {
@@ -79,8 +128,13 @@ export default function BroadcastsPage() {
 
       if (fetchError) throw fetchError;
       setBroadcasts(data ?? []);
+      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('errorLoad'));
+      const message = err instanceof Error ? err.message : t('errorLoad');
+      if (broadcastsRef.current.length === 0) {
+        setError(message);
+        toast.error(t('errorLoad'));
+      }
     } finally {
       setLoading(false);
     }
@@ -106,9 +160,6 @@ export default function BroadcastsPage() {
       pollTimer.current = null;
     }
 
-    // Pause polling while the tab is hidden — keeps Supabase cold when
-    // the user is away, and ensures a fresh fetch the moment they
-    // refocus so they don't see stale data on return.
     function handleVisibilityChange() {
       if (!anySending) return;
       if (document.visibilityState === 'hidden') {
@@ -131,89 +182,62 @@ export default function BroadcastsPage() {
     };
   }, [anySending]);
 
-  if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex h-64 flex-col items-center justify-center gap-2">
-        <p className="text-sm text-red-400">{error}</p>
-        <Button variant="outline" onClick={() => window.location.reload()}>
-          {t('retry')}
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {/* Top indeterminate progress bar: only visible while a broadcast
-          is mid-send. Pure CSS animation so no extra deps. */}
       {anySending && (
         <div
           role="progressbar"
-          aria-label="Broadcast in progress"
+          aria-label={tStatus('sending')}
           className="broadcast-indeterminate fixed inset-x-0 top-0 z-40 h-0.5 overflow-hidden bg-muted"
         >
           <div className="broadcast-indeterminate-bar h-0.5 bg-primary" />
-          <style jsx>{`
-            .broadcast-indeterminate-bar {
-              width: 33%;
-              transform: translateX(-100%);
-              animation: broadcast-slide 1.6s cubic-bezier(0.4, 0, 0.2, 1)
-                infinite;
-            }
-            @keyframes broadcast-slide {
-              0% {
-                transform: translateX(-100%);
-              }
-              100% {
-                transform: translateX(400%);
-              }
-            }
-          `}</style>
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('subtitle')}
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
         </div>
-        <GatedButton
-          canAct={canCreate}
-          gateReason="create broadcasts"
-          onClick={() => router.push('/broadcasts/new')}
+        <NewBroadcastLink
+          canCreate={canCreate}
+          label={t('newBroadcast')}
           className="bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus className="h-4 w-4" />
-          {t('newBroadcast')}
-        </GatedButton>
+        />
       </div>
 
-      {broadcasts.length === 0 ? (
-        <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-border bg-card">
-          <Radio className="mb-3 h-10 w-10 text-muted-foreground" />
-          <p className="text-sm font-medium text-foreground">{t('noBroadcastsYet')}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t('createFirst')}
-          </p>
-          <GatedButton
-            canAct={canCreate}
-            gateReason="create broadcasts"
-            onClick={() => router.push('/broadcasts/new')}
-            className="mt-4 bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" />
-            {t('newBroadcast')}
-          </GatedButton>
+      {loading ? (
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-card px-6 py-16 text-center">
+          <p className="text-sm font-medium text-foreground">{t('errorLoad')}</p>
+          <p className="max-w-md text-xs text-muted-foreground">{t('errorHint')}</p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button variant="outline" onClick={() => {
+              setLoading(true);
+              fetchBroadcasts();
+            }}>
+              {t('retry')}
+            </Button>
+            <NewBroadcastLink canCreate={canCreate} label={t('newBroadcast')} />
+          </div>
+        </div>
+      ) : broadcasts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card px-6 py-16 text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+            <Radio className="h-7 w-7 text-primary" />
+          </div>
+          <p className="text-base font-semibold text-foreground">{t('emptyTitle')}</p>
+          <p className="mt-2 max-w-md text-sm text-muted-foreground">{t('emptyDesc')}</p>
+          <div className="mt-6">
+            <NewBroadcastLink
+              canCreate={canCreate}
+              label={t('emptyCta')}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            />
+          </div>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border bg-card">
@@ -221,19 +245,29 @@ export default function BroadcastsPage() {
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground">{t('table.name')}</TableHead>
-                <TableHead className="hidden text-muted-foreground md:table-cell">{t('table.template')}</TableHead>
+                <TableHead className="hidden text-muted-foreground md:table-cell">{t('table.message')}</TableHead>
                 <TableHead className="hidden text-right text-muted-foreground sm:table-cell">
                   {t('table.recipients')}
                 </TableHead>
                 <TableHead className="hidden text-muted-foreground lg:table-cell">{t('table.delivery')}</TableHead>
                 <TableHead className="hidden text-muted-foreground lg:table-cell">{t('table.read')}</TableHead>
                 <TableHead className="text-muted-foreground">{t('table.status')}</TableHead>
-                <TableHead className="hidden text-muted-foreground sm:table-cell">{t('table.date')}</TableHead>
+                <TableHead className="hidden text-muted-foreground sm:table-cell">{t('table.lastActivity')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {broadcasts.map((broadcast) => {
                 const status = getBroadcastStatus(broadcast.status);
+                const total = broadcast.total_recipients ?? 0;
+                const sent = broadcast.sent_count ?? 0;
+                let activityLabel = '';
+                try {
+                  activityLabel = formatDistanceToNow(new Date(lastActivityIso(broadcast)), {
+                    addSuffix: true,
+                  });
+                } catch {
+                  activityLabel = new Date(broadcast.created_at).toLocaleDateString();
+                }
                 return (
                   <TableRow
                     key={broadcast.id}
@@ -241,25 +275,41 @@ export default function BroadcastsPage() {
                     onClick={() => router.push(`/broadcasts/${broadcast.id}`)}
                   >
                     <TableCell className="font-medium text-foreground">
-                      {broadcast.name}
+                      <div className="flex items-center gap-2">
+                        <span>{broadcast.name}</span>
+                        {broadcast.status === 'draft' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 border-border text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/broadcasts/new?draft=${broadcast.id}`);
+                            }}
+                          >
+                            <Pencil className="mr-1 h-3 w-3" />
+                            {t('continue')}
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="hidden text-muted-foreground md:table-cell">
-                      {broadcast.template_name}
+                      {messageLabel(broadcast, t('plainText'))}
                     </TableCell>
                     <TableCell className="hidden text-right text-muted-foreground tabular-nums sm:table-cell">
-                      {broadcast.total_recipients}
+                      {t('table.sentOf', { sent, total })}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       <RateCell
-                        value={broadcast.delivered_count}
-                        total={broadcast.total_recipients}
+                        value={broadcast.delivered_count ?? 0}
+                        total={total}
                         color="bg-primary"
                       />
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       <RateCell
-                        value={broadcast.read_count}
-                        total={broadcast.total_recipients}
+                        value={broadcast.read_count ?? 0}
+                        total={total}
                         color="bg-blue-500"
                       />
                     </TableCell>
@@ -277,7 +327,7 @@ export default function BroadcastsPage() {
                       </span>
                     </TableCell>
                     <TableCell className="hidden text-muted-foreground sm:table-cell">
-                      {new Date(broadcast.created_at).toLocaleDateString()}
+                      {activityLabel}
                     </TableCell>
                   </TableRow>
                 );

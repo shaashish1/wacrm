@@ -3,10 +3,12 @@ dotenv.config({ path: '../web/.env.local' });
 
 import { createClient } from '@supabase/supabase-js';
 import { QueueProcessor } from './queue-processor';
+import { SendQueueDrainer } from './send-queue-drainer';
 import { BaileysProvider } from './providers/baileys-provider';
 import { startWebhookDispatcherWorker, dispatchToWebhook, dispatchStatusToWebhook } from './webhook-dispatcher';
 import { httpServer, io } from './socket';
 import { agentLog } from './debug-log';
+import { isOptOutText } from './opt-out';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -17,6 +19,7 @@ console.log('Worker service starting up...');
 
 let provider: BaileysProvider;
 let processor: QueueProcessor;
+let sendQueueDrainer: SendQueueDrainer;
 let webhookWorker: any;
 
 async function main() {
@@ -25,6 +28,22 @@ async function main() {
   // Register global callbacks
   provider.onInboundMessage(async (accountId, message) => {
     console.log(`[Baileys] Received message for ${accountId}: ${message.id}`);
+
+    if (isOptOutText(message.text)) {
+      const phone = String(message.from || '').replace(/\D/g, '');
+      if (phone) {
+        const { error } = await supabase
+          .from('contacts')
+          .update({ opted_out: true, opted_out_at: new Date().toISOString() })
+          .eq('account_id', accountId)
+          .eq('phone_normalized', phone);
+        if (error) {
+          console.warn('[Baileys] opt-out update failed:', error.message);
+        } else {
+          console.log(`[Baileys] Contact ${phone} opted out for ${accountId}`);
+        }
+      }
+    }
     
     // Fetch phone_number_id from config to construct webhook payload
     const { data: config } = await supabase
@@ -79,6 +98,13 @@ async function main() {
   processor = new QueueProcessor(provider);
   processor.start();
 
+  sendQueueDrainer = new SendQueueDrainer(
+    provider,
+    processor.rateGovernor,
+    (broadcastId) => processor.maybeFinalizeBroadcast(broadcastId),
+  );
+  sendQueueDrainer.start();
+
   // Start Webhook Dispatcher
   webhookWorker = startWebhookDispatcherWorker();
   
@@ -125,6 +151,7 @@ main().catch((err) => {
 async function shutdown(signal: string) {
   console.log(`\n[Worker] Received ${signal}, shutting down gracefully...`);
   try {
+    if (sendQueueDrainer) await sendQueueDrainer.stop();
     if (processor) await processor.stop();
     if (webhookWorker) await webhookWorker.close();
     if (provider) await provider.closeAll();

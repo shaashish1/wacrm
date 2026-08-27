@@ -1,20 +1,23 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { providerFactory } from '@/lib/providers/factory'
-import { decrypt } from '@/lib/whatsapp/encryption'
 import type { SendTimeParams } from '@/lib/whatsapp/template-send-builder'
+import { buildSendComponents } from '@/lib/whatsapp/template-send-builder'
 import { isMessageTemplate } from '@/lib/whatsapp/template-row-guard'
 import {
   sanitizePhoneForMeta,
   isValidE164,
-  phoneVariants,
-  isRecipientNotAllowedError,
 } from '@/lib/whatsapp/phone-utils'
 import {
   checkRateLimit,
   rateLimitResponse,
   RATE_LIMITS,
 } from '@/lib/rate-limit'
+import {
+  insertSendQueueJobs,
+  markRecipientsQueued,
+  type SendQueueJobInput,
+} from '@/lib/broadcasts/enqueue-send-queue'
+import type { MessageTemplate } from '@/types'
 
 interface BroadcastResult {
   phone: string
@@ -56,6 +59,9 @@ interface NewRecipient {
    * sendTemplateMessage for the merge rules.
    */
   messageParams?: SendTimeParams
+  recipient_id?: string
+  broadcast_id?: string
+  contact_id?: string
 }
 
 export async function POST(request: Request) {
@@ -98,12 +104,19 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const {
+      mode,
       recipients: newRecipients,
       phone_numbers,
       template_name,
       template_language,
       template_params,
     } = body
+
+    // wwebjs plain-text path: enqueue one sendText/sendMedia job per
+    // recipient. Cloud API template broadcasts stay on the branch below.
+    if (mode === 'plain') {
+      return enqueuePlainTextBroadcast(accountId, body)
+    }
 
     // Normalize to a list of {phone, params} regardless of shape.
     let recipients: NewRecipient[]
@@ -150,13 +163,10 @@ export async function POST(request: Request) {
       )
     }
 
-    const accessToken = decrypt(config.access_token)
-
-    // Load the template row once so sendTemplateMessage can build
-    // header + button components on each iteration. Loading inside
-    // the loop would N+1 against Supabase for every recipient.
-    // Guard against a malformed local row crashing every send in
-    // the loop with the same opaque TypeError — fail loudly once.
+    // Load the template row once so we can pre-build Graph API
+    // components per recipient and persist them on send_queue. The
+    // worker then POSTs those components without duplicating builder
+    // logic. Guard against a malformed local row crashing every enqueue.
     const { data: rawTemplateRow } = await supabase
       .from('message_templates')
       .select('*')
@@ -173,8 +183,10 @@ export async function POST(request: Request) {
         { status: 500 },
       )
     }
-    const templateRow = rawTemplateRow ?? null
+    const templateRow = (rawTemplateRow ?? null) as MessageTemplate | null
 
+    const jobs: SendQueueJobInput[] = []
+    const queuedIds: string[] = []
     const results: BroadcastResult[] = []
     let sentCount = 0
     let failedCount = 0
@@ -192,63 +204,62 @@ export async function POST(request: Request) {
         continue
       }
 
-      // Retry with phone variants on "not in allowed list" so numbers
-      // that differ only in a trunk-prefix 0 still reach recipients.
-      const variants = phoneVariants(sanitized)
-      let sentMessageId: string | null = null
-      let lastError: string | null = null
-
-      const provider = await providerFactory(accountId);
-      
-      for (const variant of variants) {
-        try {
-          const result = await provider.sendTemplate(
-            accountId,
-            variant,
-            template_name,
-            template_language || 'en_US',
-            undefined,
+      let components: unknown[] = []
+      try {
+        if (templateRow) {
+          components = buildSendComponents(templateRow, {
+            body: recipient.messageParams?.body ?? recipient.params,
+            headerText: recipient.messageParams?.headerText,
+            headerMediaUrl: recipient.messageParams?.headerMediaUrl,
+            headerMediaId: recipient.messageParams?.headerMediaId,
+            buttonParams: recipient.messageParams?.buttonParams,
+          })
+        } else if (recipient.params && recipient.params.length > 0) {
+          components = [
             {
-              templateRow: templateRow ?? undefined,
-              messageParams: recipient.messageParams,
-              params: recipient.params ?? [],
-            }
-          )
-          sentMessageId = result.messageId
-          lastError = null
-          break
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error'
-          if (!isRecipientNotAllowedError(errorMessage)) {
-            lastError = errorMessage
-            break
-          }
-          lastError = errorMessage
-          // retry with next variant
+              type: 'body',
+              parameters: recipient.params.map((p) => ({
+                type: 'text',
+                text: String(p),
+              })),
+            },
+          ]
         }
-      }
-
-      if (sentMessageId) {
-        results.push({
-          phone: recipient.phone,
-          status: 'sent',
-          whatsapp_message_id: sentMessageId,
-        })
-        sentCount++
-      } else {
-        console.error(
-          `Failed to send broadcast to ${recipient.phone}:`,
-          lastError
-        )
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to build template'
         results.push({
           phone: recipient.phone,
           status: 'failed',
-          error: lastError || 'Unknown error',
+          error: errorMessage,
         })
         failedCount++
+        continue
       }
+
+      jobs.push({
+        accountId,
+        providerType: 'cloud_api',
+        action: 'sendTemplate',
+        payload: {
+          to: sanitized,
+          template_name,
+          template_language: template_language || 'en_US',
+          components,
+          options: {
+            broadcastRecipientId: recipient.recipient_id,
+            broadcastId: recipient.broadcast_id,
+            contactId: recipient.contact_id,
+          },
+        },
+      })
+      if (recipient.recipient_id) queuedIds.push(recipient.recipient_id)
+      results.push({ phone: recipient.phone, status: 'sent' })
+      sentCount++
     }
+
+    await insertSendQueueJobs(jobs)
+    await markRecipientsQueued(queuedIds)
 
     return NextResponse.json({
       success: true,
@@ -264,4 +275,91 @@ export async function POST(request: Request) {
       { status: 500 }
     )
   }
+}
+
+interface PlainRecipient {
+  phone: string
+  body: string
+  recipient_id?: string
+  broadcast_id?: string
+  contact_id?: string
+  media?: { url: string; kind?: 'image' | 'video' | 'document' | 'audio' }
+}
+
+async function enqueuePlainTextBroadcast(accountId: string, body: {
+  recipients?: PlainRecipient[]
+}) {
+  const recipients = Array.isArray(body.recipients) ? body.recipients : []
+  if (recipients.length === 0) {
+    return NextResponse.json(
+      { error: '`recipients` must be a non-empty array' },
+      { status: 400 },
+    )
+  }
+
+  const jobs: SendQueueJobInput[] = []
+  const queuedIds: string[] = []
+  const results: BroadcastResult[] = []
+  let sentCount = 0
+  let failedCount = 0
+
+  for (const recipient of recipients) {
+    const phone = typeof recipient.phone === 'string' ? recipient.phone : ''
+    const text = typeof recipient.body === 'string' ? recipient.body : ''
+    if (!phone || !text) {
+      results.push({
+        phone: phone || recipient.phone,
+        status: 'failed',
+        error: 'phone and body are required',
+      })
+      failedCount++
+      continue
+    }
+
+    const sanitized = sanitizePhoneForMeta(phone)
+    if (!isValidE164(sanitized)) {
+      results.push({
+        phone,
+        status: 'failed',
+        error: 'Invalid phone number format',
+      })
+      failedCount++
+      continue
+    }
+
+    const mediaUrl = recipient.media?.url?.trim()
+    const options = {
+      broadcastRecipientId: recipient.recipient_id,
+      broadcastId: recipient.broadcast_id,
+      contactId: recipient.contact_id,
+    }
+    jobs.push({
+      accountId,
+      providerType: 'wwebjs',
+      action: mediaUrl ? 'sendMedia' : 'sendText',
+      payload: mediaUrl
+        ? {
+            to: sanitized,
+            kind: recipient.media?.kind || 'image',
+            media: { link: mediaUrl },
+            caption: text,
+            options,
+          }
+        : { to: sanitized, body: text, options },
+    })
+    if (recipient.recipient_id) queuedIds.push(recipient.recipient_id)
+    results.push({ phone, status: 'sent' })
+    sentCount++
+  }
+
+  await insertSendQueueJobs(jobs)
+  await markRecipientsQueued(queuedIds)
+
+  return NextResponse.json({
+    success: true,
+    total: recipients.length,
+    sent: sentCount,
+    failed: failedCount,
+    results,
+  })
 }
