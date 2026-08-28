@@ -36,6 +36,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Windows-generated lockfiles omit Linux optional natives. `npm ci`
+      # will not fetch them unless they are lockfile package entries; this
+      # fills any remaining host-platform gaps (SWC, Parcel watcher, etc.).
+      - name: Install host-platform optional natives
+        run: npm install --no-package-lock --no-audit --no-fund --include=optional --workspace=@wacrm/web
+
       - name: Lint
         run: npm run lint
 
