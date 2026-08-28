@@ -4,13 +4,14 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
+const isProd = process.env.NODE_ENV === "production";
+
 /**
  * Baseline security headers applied to every response.
  *
- * CSP ships as `Content-Security-Policy-Report-Only` so the browser
- * surfaces violations in the console without blocking anything — once
- * we have confidence nothing legit trips it (two deploys, a pass on
- * every route), flip the key to `Content-Security-Policy` to enforce.
+ * Production enforces CSP. Dev keeps Report-Only so Next.js HMR /
+ * overlays are not blocked while we iterate. Flip is automatic via
+ * NODE_ENV — do not ship production with Report-Only.
  *
  * The rest of the headers are straight blocks, safe to enforce today:
  *   - HSTS: only meaningful on HTTPS (no-op on http://localhost).
@@ -37,7 +38,9 @@ const SECURITY_HEADERS = [
     value: "camera=(), microphone=(self), geolocation=(), payment=(), usb=()",
   },
   {
-    key: "Content-Security-Policy-Report-Only",
+    key: isProd
+      ? "Content-Security-Policy"
+      : "Content-Security-Policy-Report-Only",
     value: [
       "default-src 'self'",
       // Next.js needs 'unsafe-inline' for its inline hydration script
@@ -70,6 +73,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+
+  // Optional isolated output so `next build` can run while a webpack
+  // `next dev` still owns `.next` (set NEXT_DIST_DIR=.next-prod).
+  ...(process.env.NEXT_DIST_DIR
+    ? { distDir: process.env.NEXT_DIST_DIR }
+    : {}),
 
   /**
    * Cross-origin dev access (Next.js 16).

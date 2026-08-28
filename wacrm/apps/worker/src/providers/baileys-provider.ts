@@ -31,7 +31,6 @@ import { createClient } from '@supabase/supabase-js';
 import pino from 'pino';
 import qrcode from 'qrcode-terminal';
 import { io } from '../socket';
-import { agentLog } from '../debug-log';
 import crypto from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs/promises';
@@ -163,9 +162,12 @@ export class BaileysProvider implements IMessagingProvider {
       },
       { onConflict: 'account_id' },
     );
-    // #region agent log
-    agentLog('baileys-provider.ts:persistQr', 'persist QR to sessions', { accountIdPrefix: accountId.slice(0, 8), ok: !error, err: error?.message ?? null, qrLen: qr.length }, 'A');
-    // #endregion
+    console.log('[Baileys] persist QR', {
+      accountIdPrefix: accountId.slice(0, 8),
+      ok: !error,
+      err: error?.message ?? null,
+      qrLen: qr.length,
+    });
     if (error) {
       console.error('[Baileys] Failed to persist QR:', error);
     }
@@ -175,9 +177,12 @@ export class BaileysProvider implements IMessagingProvider {
     if (this.sockets.has(accountId)) {
       const currentStatus = this.sessionStatuses.get(accountId) ?? 'disconnected';
       const qr = this.lastQrCodes.get(accountId);
-      // #region agent log
-      agentLog('baileys-provider.ts:initializeSession', 'socket already exists; re-emitting last QR if present', { accountIdPrefix: accountId.slice(0, 8), currentStatus, hasQr: !!qr, qrLen: qr?.length ?? 0 }, 'B');
-      // #endregion
+      console.log('[Baileys] session already open; re-emitting last QR if present', {
+        accountIdPrefix: accountId.slice(0, 8),
+        currentStatus,
+        hasQr: !!qr,
+        qrLen: qr?.length ?? 0,
+      });
       if (qr) {
         io.to(accountId).emit('qr_refresh', qr);
       }
@@ -260,9 +265,11 @@ export class BaileysProvider implements IMessagingProvider {
         if (qr && !usePairingCode) {
           this.sessionStatuses.set(accountId, 'qr_pending');
           const roomSize = io.sockets.adapter.rooms.get(accountId)?.size ?? 0;
-          // #region agent log
-          agentLog('baileys-provider.ts:qr', 'qr generated, persisting and emitting', { accountIdPrefix: accountId.slice(0, 8), ioType: typeof io, hasTo: typeof io?.to, roomSize, qrLen: typeof qr === 'string' ? qr.length : 0 }, 'C');
-          // #endregion
+          console.log('[Baileys] QR generated', {
+            accountIdPrefix: accountId.slice(0, 8),
+            roomSize,
+            qrLen: typeof qr === 'string' ? qr.length : 0,
+          });
           try {
             await this.persistQr(accountId, qr);
           } catch (err) {
@@ -933,9 +940,6 @@ export class BaileysProvider implements IMessagingProvider {
     }
 
     console.log(`[Baileys] Synced ${entries.length} groups, ${participantCount} participants for ${accountId} (phones resolved: ${phonesResolved}/${participantCount}, names resolved: ${namesResolved}/${participantCount}, names null: ${namesNull}, LID map: ${this.lidToPhone.size})`);
-    // #region agent log
-    agentLog('baileys-provider.ts:syncGroups', 'group sync complete', { accountIdPrefix: accountId.slice(0, 8), groupCount: entries.length, participantCount, phonesResolved, namesResolved, namesNull }, 'D');
-    // #endregion
     return { groupCount: entries.length, participantCount };
   }
 
@@ -966,10 +970,6 @@ export class BaileysProvider implements IMessagingProvider {
     // Don't keep the worker process alive solely for this timer.
     if (typeof (recurring as any).unref === 'function') (recurring as any).unref();
     this.groupSyncIntervals.set(accountId, recurring);
-
-    // #region agent log
-    agentLog('baileys-provider.ts:scheduleAutoGroupSync', 'scheduled auto group sync', { accountIdPrefix: accountId.slice(0, 8), delayMs: GROUP_SYNC_DELAY_MS, intervalMs: GROUP_SYNC_INTERVAL_MS }, 'D');
-    // #endregion
   }
 
   private clearAutoGroupSync(accountId: string) {
@@ -987,13 +987,7 @@ export class BaileysProvider implements IMessagingProvider {
 
   private async autoSyncGroups(accountId: string) {
     if (this.sessionStatuses.get(accountId) !== 'connected') return;
-    // #region agent log
-    agentLog('baileys-provider.ts:autoSyncGroups', 'auto group sync triggered', { accountIdPrefix: accountId.slice(0, 8) }, 'D');
-    // #endregion
-    const result = await this.syncGroups(accountId);
-    // #region agent log
-    agentLog('baileys-provider.ts:autoSyncGroups', 'auto group sync done', { accountIdPrefix: accountId.slice(0, 8), ...result }, 'D');
-    // #endregion
+    await this.syncGroups(accountId);
   }
 
   /**

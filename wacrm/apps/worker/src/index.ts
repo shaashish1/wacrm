@@ -14,7 +14,6 @@ import { SendQueueDrainer } from './send-queue-drainer';
 import { BaileysProvider } from './providers/baileys-provider';
 import { startWebhookDispatcherWorker, dispatchToWebhook, dispatchStatusToWebhook } from './webhook-dispatcher';
 import { httpServer, io } from './socket';
-import { agentLog } from './debug-log';
 import { isOptOutText } from './opt-out';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -128,7 +127,7 @@ async function main() {
       provider.getSessionStatus(accountId).then((status) => {
         const qr = provider.getLastQr(accountId);
         const roomSize = io.sockets.adapter.rooms.get(accountId)?.size ?? 0;
-        agentLog('worker/index.ts:join', 'client joined socket room', {
+        console.log('[Socket.IO] join', {
           accountIdPrefix: String(accountId).slice(0, 8),
           status,
           roomSize,

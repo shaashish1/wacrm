@@ -3,8 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import { RateGovernor } from './rate-governor';
 import { UnrecoverableError, Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
-import { agentLog } from './debug-log';
-
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
@@ -51,7 +49,7 @@ export class QueueProcessor {
 
     if (action === 'initSession') {
       const status = await this.provider.getSessionStatus(accountId);
-      agentLog('queue-processor.ts:initSession', 'initSession job received', {
+      console.log('[Queue] initSession', {
         accountIdPrefix: String(accountId).slice(0, 8),
         status,
         willSkip: status === 'connected',

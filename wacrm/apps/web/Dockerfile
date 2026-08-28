@@ -2,6 +2,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package.json ./
+COPY .npmrc ./
 COPY packages/shared ./packages/shared
 COPY apps/web ./apps/web
 COPY apps/worker ./apps/worker
@@ -27,6 +28,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app ./
 EXPOSE 3100
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3100/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=40s \
+  CMD node -e "fetch('http://127.0.0.1:3100/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["npm", "run", "start", "--workspace=@wacrm/web"]

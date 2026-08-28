@@ -52,7 +52,23 @@ Worker `start` reads the environment. Locally it still falls back to `apps/web/.
 
 ## Socket.IO
 
-The worker depends on `socket.io` and listens on `WORKER_SOCKET_PORT`. The Settings QR flow **polls the `sessions` table** and does not require a browser Socket.IO client. Treat Socket.IO as optional realtime; pairing still works if the browser never connects to port 4000.
+The worker depends on `socket.io` and listens on `WORKER_SOCKET_PORT`. CORS is locked to `NEXT_PUBLIC_SITE_URL` (plus optional `SOCKET_CORS_ORIGINS`). It does **not** reflect arbitrary Origins. The Settings QR flow **polls the `sessions` table** and does not require a browser Socket.IO client. Treat Socket.IO as optional realtime; pairing still works if the browser never connects to port 4000.
+
+## Windows installs
+
+Workspace `npm install` needs directory junctions unless Developer Mode is on. This repo ships `.npmrc` with `install-links=true` and `install-strategy=nested` so packages are copied instead of symlinked. After that, `npm install` from `wacrm/` should work without admin rights.
+
+Local **dev** on Windows often needs webpack (Turbopack postcss can fail on a nested install):
+
+```bash
+npm run dev:webpack --workspace=@wacrm/web   # :3100
+```
+
+Production still uses `next build` + `next start -p 3100`, not webpack. To prove a production build while webpack still owns `.next`, set `NEXT_DIST_DIR=.next-prod` for that build only.
+
+## Security headers
+
+Production (`NODE_ENV=production`) sends an enforcing `Content-Security-Policy`. `next dev` stays Report-Only so HMR is not blocked.
 
 ## Health
 

@@ -3,6 +3,13 @@ import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/acco
 
 type Params = { params: Promise<{ id: string }> };
 
+function parseContactIds(body: unknown): string[] {
+  if (!body || typeof body !== 'object' || !('contactIds' in body)) return [];
+  const raw = (body as { contactIds: unknown }).contactIds;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((id): id is string => typeof id === 'string');
+}
+
 export async function GET(request: Request, { params }: Params) {
   try {
     const { supabase, accountId } = await getCurrentAccount();
@@ -25,8 +32,8 @@ export async function POST(request: Request, { params }: Params) {
     const { supabase, accountId } = await requireRole('agent');
     const { id } = await params;
 
-    const body = await request.json().catch(() => null);
-    if (!body || !Array.isArray(body.contactIds)) {
+    const contactIds = parseContactIds(await request.json().catch(() => null));
+    if (contactIds.length === 0) {
       return NextResponse.json({ error: 'contactIds array required' }, { status: 400 });
     }
 
@@ -36,7 +43,7 @@ export async function POST(request: Request, { params }: Params) {
     if (!group) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (group.is_smart) return NextResponse.json({ error: 'Cannot manually add to smart groups' }, { status: 400 });
 
-    const inserts = body.contactIds.map(contactId => ({
+    const inserts = contactIds.map((contactId) => ({
       group_id: id,
       contact_id: contactId
     }));
@@ -61,8 +68,8 @@ export async function DELETE(request: Request, { params }: Params) {
     const { supabase, accountId } = await requireRole('agent');
     const { id } = await params;
 
-    const body = await request.json().catch(() => null);
-    if (!body || !Array.isArray(body.contactIds)) {
+    const contactIds = parseContactIds(await request.json().catch(() => null));
+    if (contactIds.length === 0) {
       return NextResponse.json({ error: 'contactIds array required' }, { status: 400 });
     }
 
@@ -73,7 +80,7 @@ export async function DELETE(request: Request, { params }: Params) {
       .from('contact_group_members')
       .delete()
       .eq('group_id', id)
-      .in('contact_id', body.contactIds);
+      .in('contact_id', contactIds);
 
     if (error) throw error;
 

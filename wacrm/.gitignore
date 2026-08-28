@@ -15,6 +15,7 @@ node_modules
 
 # next.js
 .next/
+.next-prod/
 /out/
 
 # production
@@ -60,6 +61,7 @@ vps.md
 
 # package-lock per workspace (root lock is kept)
 apps/*/package-lock.json
+packages/*/package-lock.json
 
 # typescript
 *.tsbuildinfo
