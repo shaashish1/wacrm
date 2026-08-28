@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '@/lib/email/send';
@@ -11,8 +12,11 @@ export async function GET(request: Request) {
   if (!expected) {
     return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 503 });
   }
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${expected}`) {
+  const authHeader = request.headers.get('authorization') ?? '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  const a = Buffer.from(token);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -1,16 +1,16 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-COPY package.json ./
-COPY .npmrc ./
+COPY package.json package-lock.json .npmrc ./
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/worker/package.json ./apps/worker/package.json
+RUN npm ci
+
 COPY packages/shared ./packages/shared
 COPY apps/web ./apps/web
 COPY apps/worker ./apps/worker
 
-RUN npm install
-
-# Placeholders so `next build` can evaluate NEXT_PUBLIC_* at compile time.
-# Runtime values come from Compose/env — rebuild if you change public URL/keys.
 ARG NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=build-placeholder-anon
 ARG NEXT_PUBLIC_SITE_URL=http://localhost:3100
@@ -26,7 +26,9 @@ RUN npm run build --workspace=@wacrm/web
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app ./
+RUN addgroup -S app && adduser -S app -G app
+COPY --from=builder --chown=app:app /app ./
+USER app
 EXPOSE 3100
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=40s \
   CMD node -e "fetch('http://127.0.0.1:3100/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

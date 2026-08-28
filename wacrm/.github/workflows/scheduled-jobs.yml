@@ -1,0 +1,44 @@
+# Pings production cron routes. Set repository secrets:
+#   APP_URL                  e.g. https://crm.example.com  (no trailing slash)
+#   CRON_SECRET              same as the app env
+#   AUTOMATION_CRON_SECRET   same as the app env
+#
+# Disable this workflow if you use an external scheduler (systemd, Hostinger cron).
+
+name: Scheduled jobs
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  drain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Broadcasts + campaigns
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "Skip: APP_URL or CRON_SECRET secret is not set"
+            exit 0
+          fi
+          curl -fsS -H "Authorization: Bearer ${CRON_SECRET}" "${APP_URL}/api/broadcasts/cron"
+          curl -fsS -H "Authorization: Bearer ${CRON_SECRET}" "${APP_URL}/api/campaigns/cron"
+
+      - name: Automations + flows
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          AUTOMATION_CRON_SECRET: ${{ secrets.AUTOMATION_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_URL:-}" ] || [ -z "${AUTOMATION_CRON_SECRET:-}" ]; then
+            echo "Skip: APP_URL or AUTOMATION_CRON_SECRET secret is not set"
+            exit 0
+          fi
+          curl -fsS -H "x-cron-secret: ${AUTOMATION_CRON_SECRET}" "${APP_URL}/api/automations/cron"
+          curl -fsS -H "x-cron-secret: ${AUTOMATION_CRON_SECRET}" "${APP_URL}/api/flows/cron"

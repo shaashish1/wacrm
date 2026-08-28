@@ -50,6 +50,16 @@ npm run start --workspace=@wacrm/worker  # uses process env, not --env-file
 
 Worker `start` reads the environment. Locally it still falls back to `apps/web/.env.local` if `NEXT_PUBLIC_SUPABASE_URL` is unset.
 
+## Scheduled jobs (broadcasts, campaigns, automations)
+
+Those features need a pinger every few minutes:
+
+- **GitHub Actions:** this repo’s [`.github/workflows/scheduled-jobs.yml`](../../.github/workflows/scheduled-jobs.yml) (monorepo root). Set secrets `APP_URL`, `CRON_SECRET`, and `AUTOMATION_CRON_SECRET`.
+- **crontab / Hostinger:**  
+  `*/5 * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://crm.example.com/api/broadcasts/cron`
+
+Without a scheduler, **Send now** still works; **Schedule** and drip campaigns will sit in `scheduled` until something hits the cron routes.
+
 ## Socket.IO
 
 The worker depends on `socket.io` and listens on `WORKER_SOCKET_PORT`. CORS is locked to `NEXT_PUBLIC_SITE_URL` (plus optional `SOCKET_CORS_ORIGINS`). It does **not** reflect arbitrary Origins. The Settings QR flow **polls the `sessions` table** and does not require a browser Socket.IO client. Treat Socket.IO as optional realtime; pairing still works if the browser never connects to port 4000.

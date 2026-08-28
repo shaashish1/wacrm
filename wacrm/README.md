@@ -1,8 +1,13 @@
-# wacrm — CRM Template for WhatsApp
+# wacrm — CRM for WhatsApp (Web + Cloud API)
 
-> Self-hostable CRM template for WhatsApp® — shared inbox, contacts,
-> sales pipelines, broadcasts, and no-code automations. Fork it, brand
-> it, host it.
+> Self-hostable CRM: shared inbox, contacts from WhatsApp groups,
+> tags, pipelines, **plain-text or Meta-template broadcasts**,
+> scheduling, and automations. Pair a number with **WhatsApp Web
+> (Baileys)** or the official Cloud API.
+
+**Production deploy (this fork):** [docs/production.md](./docs/production.md) — Docker Compose (web `:3100`, worker `:4000`, Redis), hosted or local Supabase, health checks, cron secrets.
+
+Repo: [shaashish1/wacrm](https://github.com/shaashish1/wacrm).
 
 <p align="center">
   <a href="https://www.hostinger.com/web-apps-hosting">
@@ -11,7 +16,7 @@
 </p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-violet.svg)](./LICENSE)
-[![CI](https://github.com/ArnasDon/wacrm/actions/workflows/ci.yml/badge.svg)](https://github.com/ArnasDon/wacrm/actions/workflows/ci.yml)
+[![CI](https://github.com/shaashish1/wacrm/actions/workflows/ci.yml/badge.svg)](https://github.com/shaashish1/wacrm/actions/workflows/ci.yml)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](https://nextjs.org)
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3ecf8e?logo=supabase)](https://supabase.com)
 [![Stars](https://img.shields.io/github/stars/ArnasDon/wacrm?style=social)](https://github.com/ArnasDon/wacrm/stargazers)
@@ -79,12 +84,12 @@ in an afternoon and make yours.
 ## Quick start
 
 ```bash
-# Fork on GitHub first: https://github.com/ArnasDon/wacrm → Fork
-git clone https://github.com/<your-username>/wacrm.git
+git clone https://github.com/shaashish1/wacrm.git
 cd wacrm
 npm install
-cp .env.local.example .env.local   # fill in Supabase + Meta creds
-npm run dev
+cp apps/web/.env.local.example apps/web/.env.local   # Supabase (+ Meta if Cloud API)
+# Windows without Developer Mode: .npmrc already uses nested copies (no symlinks)
+npm run dev:webpack --workspace=@wacrm/web   # http://localhost:3100
 ```
 
 Open <http://localhost:3100>. You'll be redirected to `/login` (or

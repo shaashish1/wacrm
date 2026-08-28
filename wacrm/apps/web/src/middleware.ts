@@ -69,8 +69,23 @@ export async function middleware(request: NextRequest) {
     return withRefreshedCookies(NextResponse.redirect(url))
   }
 
-  // Protected pages - redirect to login if not authenticated
-  const protectedPaths = ['/dashboard', '/inbox', '/contacts', '/pipelines', '/broadcasts', '/automations', '/settings']
+  // Protected pages - redirect to login if not authenticated.
+  // Keep in sync with apps/web/src/components/layout/sidebar.tsx navItems.
+  const protectedPaths = [
+    '/dashboard',
+    '/inbox',
+    '/notifications',
+    '/contacts',
+    '/pipelines',
+    '/broadcasts',
+    '/campaigns',
+    '/automations',
+    '/flows',
+    '/agents',
+    '/wa-groups',
+    '/contact-groups',
+    '/settings',
+  ]
   if (!user && protectedPaths.some(path => request.nextUrl.pathname.startsWith(path))) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
