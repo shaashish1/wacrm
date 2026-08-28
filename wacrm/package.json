@@ -11,9 +11,9 @@
   },
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build --workspace=@wacrm/shared && npm run build --workspace=@wacrm/web && npm run build --workspace=@wacrm/worker",
     "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run build --workspace=@wacrm/shared && npm run typecheck --workspace=@wacrm/web && npm run typecheck --workspace=@wacrm/worker",
     "test": "npm run test --workspaces --if-present"
   }
 }
