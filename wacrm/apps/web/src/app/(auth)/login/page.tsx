@@ -92,17 +92,20 @@ function LoginPageInner() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md border-border bg-card">
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <Card className="w-full max-w-md border-border/80 bg-card/80 shadow-xl backdrop-blur-xl">
         <CardHeader className="items-center text-center">
-          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
             {inviteToken ? (
               <UsersRound className="h-6 w-6 text-primary" />
             ) : (
               <MessageSquare className="h-6 w-6 text-primary" />
             )}
           </div>
-          <CardTitle className="text-xl text-foreground">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+            wacrm
+          </p>
+          <CardTitle className="font-heading text-xl font-semibold tracking-tight text-foreground">
             {inviteToken ? t('titleAccept') : t('titleWelcome')}
           </CardTitle>
           <CardDescription className="text-muted-foreground">
@@ -174,7 +177,7 @@ function LoginPageInner() {
             <Button
               type="submit"
               disabled={loading}
-              className="mt-2 h-10 w-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className="mt-2 h-11 w-full"
             >
               {loading ? t('signingIn') : t('signIn')}
             </Button>

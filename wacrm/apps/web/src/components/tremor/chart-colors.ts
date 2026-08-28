@@ -50,6 +50,12 @@ export const chartColors = {
     fill: "fill-cyan-500",
     text: "text-cyan-500",
   },
+  sky: {
+    bg: "bg-primary",
+    stroke: "stroke-primary",
+    fill: "fill-primary",
+    text: "text-primary",
+  },
   pink: {
     bg: "bg-pink-500",
     stroke: "stroke-pink-500",
