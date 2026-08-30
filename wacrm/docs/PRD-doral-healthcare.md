@@ -1,0 +1,391 @@
+# PRD — Doral Healthcare and Wellness
+
+**Product:** WaCRM + Digital Marketing + in-app AI Agents (A2A)  
+**Customer:** Doral Healthcare and Wellness (US wellness / clinic marketing)  
+**Operator:** Ashish (data scientist; builds and runs the stack)  
+**Base repo:** `shaashish1/wacrm` — single WhatsApp CRM base  
+**Status:** Planning only. No product features in this change.  
+**Date:** 2026-08-30  
+**Companion:** [PLAN-doral-healthcare.md](./PLAN-doral-healthcare.md)
+
+---
+
+## 1. Vision
+
+One self-hosted app for Doral: WhatsApp inbox and CRM, marketing campaigns with consent, and a small set of **in-app agents** that collaborate over the Linux Foundation **Agent2Agent (A2A)** protocol.
+
+Operators work in one UI. Agents talk to each other as agents (tasks, cards, discovery) — not as a pile of one-off webhooks. WhatsApp stays a **marketing and logistics** channel. It is **not** a clinical record or a HIPAA-covered messaging system.
+
+---
+
+## 2. Problem
+
+Doral needs to:
+
+1. Capture wellness leads (web, ads, events, WhatsApp) into one contact record.
+2. Follow up on WhatsApp and email without blasting people who opted out.
+3. Qualify interest (service, location, preferred time) without collecting diagnoses or SSN.
+4. Book or hand off consults without putting PHI on WhatsApp.
+5. Measure which campaign, landing page, and UTM produced the lead.
+
+Today those jobs are split across WaCRM (inbox, broadcasts, automations, a single AI playground), ad hoc marketing tools, and ideas sitting in adjacent repos (`whatsapp-research`, `omnichat`, waapi-gateway notes). Merging those repos is **out of scope**. This product **extends WaCRM**.
+
+---
+
+## 3. Users
+
+| Role | Who | Job |
+| --- | --- | --- |
+| Owner | Clinic principal / Ashish as operator | Brand, numbers, API keys, compliance gates, go-live |
+| Marketer | Doral marketing staff (or Ashish wearing this hat) | Campaigns, landings, UTMs, calendar, audiences |
+| Agent (human) | Front-desk / receptionist | Inbox, assignment, notes, booking handoff |
+| Patient / lead | Prospect or existing wellness client | Opt-in, reply, STOP, book a consult — **not** receive clinical results on WhatsApp |
+
+System actors (not humans): Lead Qualifier, Content, Broadcast Compliance, Booking/Receptionist, Analytics — see §8.
+
+---
+
+## 4. Goals and non-goals
+
+### Goals
+
+- Keep **all existing WaCRM CRM value**: inbox, contacts, tags, custom fields, contact groups, pipelines, broadcasts, automations, flows, WA group **sync/import**, email drip campaigns, AI playground + knowledge base + auto-reply, MCP server, `/api/v1` keys.
+- Add a **marketing module** on the same account: leads, campaign attribution, public landing + lead capture, UTM, content calendar, consent ledger.
+- Add **in-app agents** with A2A (Agent Cards, task lifecycle, discovery). MCP stays for “tools + data.” A2A is for “agent ↔ agent.”
+- Ship first on **lite deploy**: web + worker + Redis + **hosted Supabase**. No extra Postgres in Compose.
+- Enforce **healthcare-safe** message and storage rules on every send and every agent artifact.
+
+### Non-goals
+
+- Not an EHR, practice-management system, or billing system.
+- Not a HIPAA-covered WhatsApp channel. No BAA with Meta for WhatsApp. **No PHI on WhatsApp.**
+- Do not merge `whatsapp-research`, `omnichat`, or a waapi-gateway. Reference patterns only (booking, consent UX).
+- Not a multi-tenant SaaS marketplace. One Doral account (team roles already exist).
+- Not Meta/Google **ads manager** in v1 (hooks + CAPI later — P2).
+- Not full clinical voice/STT pipeline (omnichat has this; do not port it).
+- Not replacing MCP with A2A. Both stay.
+
+---
+
+## 5. Personas
+
+**Ashish — operator / data scientist**  
+Wants one Compose stack, hosted Supabase, measurable funnels, agents he can inspect (cards, tasks, traces). Will run cron, keys, and model spend. Needs red-team rules so an agent cannot dump a chart review into WhatsApp.
+
+**Maya — marketer**  
+Runs a “New patient wellness week” campaign. Needs a landing page, UTM, WhatsApp opt-in checkbox, audience = contact group “Doral-Miami-leads,” drip on email + WhatsApp template, content calendar for next 4 weeks. Will not write SQL.
+
+**Luis — front desk**  
+Lives in Inbox. Wants assignment, canned-safe replies, “book consult” without seeing SSN or diagnosis. Hands off when the lead asks about lab results.
+
+**Priya — lead**  
+Clicked an Instagram ad → landing → “Text me on WhatsApp.” Expects a welcome, a slot offer, and STOP to work. Must never be asked for SSN or “what’s your diagnosis?” on this channel.
+
+---
+
+## 6. WhatsApp is not HIPAA — product rules
+
+**Fact:** Meta does not offer a BAA for consumer WhatsApp, WhatsApp Business, or the WhatsApp Business Platform. Encryption ≠ HIPAA. This product **must assume WhatsApp traffic is not a covered channel**.
+
+Treat the app as a **marketing / scheduling CRM** for a wellness clinic, not as a system of record for treatment.
+
+### 6.1 Allowed on WhatsApp and in agent memory
+
+- First name, phone (E.164), email, marketing consent timestamp + source.
+- Service **interest** from a closed list (e.g. “wellness consult,” “nutrition intro,” “membership tour”) — not a diagnosis.
+- Preferred location, language, time window.
+- Campaign / UTM / landing id.
+- Appointment **request** language: “consult,” “intro visit,” “tour” — not “follow-up for [condition].”
+- Opt-out flag. Honor `STOP` / `UNSUBSCRIBE` (already in WaCRM `opt-out.ts`; extend to `END`, `QUIT`, `CANCEL` if Meta requires).
+
+### 6.2 Forbidden (block at input, template, KB, and A2A artifact)
+
+- SSN, driver’s license, insurance member ID, medical record number.
+- Diagnoses, medications, lab/imaging results, treatment plans, visit notes.
+- Photos of wounds, IDs, prescriptions.
+- “Tell us your symptoms” free-text that becomes stored clinical narrative. If the user volunteers it: **do not persist** in contact fields, KB, or agent artifacts; reply with a redirect to a **HIPAA-capable** channel or in-clinic intake; escalate to human.
+- Using WhatsApp to confirm a **named clinical** appointment (“your MRI results are ready”). Use generic: “We have an opening Tue 10:00 for a consult. Reply YES or STOP.”
+
+### 6.3 Consent and TCPA / Meta
+
+- Marketing WhatsApp requires **prior express consent**. Store `consent_source`, `consent_at`, `consent_text` (verbatim checkbox copy), `ip`/`user_agent` on web forms.
+- Landing forms: unchecked-by-default WhatsApp opt-in. Email can be separate.
+- Every marketing template footer: “Reply STOP to opt out.”
+- Broadcast Compliance agent **must refuse** send if any recipient lacks consent or is `opted_out`.
+- 24-hour service window vs template rules stay as WaCRM/Meta already enforce.
+
+### 6.4 Data residency and subprocessors
+
+- Hosted Supabase and LLM vendors are subprocessors. Document them. Do not send forbidden fields to the model. Redact in logs (phone last-4 only in worker logs over time — P1).
+- Knowledge base: marketing FAQs, hours, addresses, service menu, parking — **no** clinical protocols that encode PHI examples.
+
+---
+
+## 7. Feature set
+
+### 7.1 WhatsApp CRM — maximize existing WaCRM
+
+Ship Doral on what already works. Do not rebuild.
+
+| Already in WaCRM | Doral use | Gap to close later |
+| --- | --- | --- |
+| Shared inbox, assignment, notes | Front desk | PHI-safe note templates (P1) |
+| Contacts, tags, custom fields, CSV | Lead records | Custom-field **deny list** for SSN/MRN (P0) |
+| Contact groups + smart filters | Audiences | Consent-aware group resolve (P0) |
+| Pipelines / deals | Lead stages: New → Qualified → Booked → Showed → Member | No PHI in deal titles |
+| Broadcasts + templates | Promos, reminders (generic) | Compliance gate before send (P0) |
+| Automations + flows | Keyword → tag; welcome series | Block clinical keywords → escalate (P0) |
+| WA groups: list, sync, import phones | Community / event groups | **Group admin** (promote/demote/remove, subject) still planned — Phase 2 |
+| Email config + drip `/campaigns` | Nurture | Unsubscribe + consent parity with WhatsApp (P0) |
+| AI playground, KB, auto-reply, usage | Drafts + capped bot | Multi-agent + A2A (Phase 4) |
+| MCP (`wacrm-mcp`) + `/api/v1` | Ashish / Cursor tools | Extend REST (Phase 2); A2A adapter (Phase 4) |
+| Roles: viewer < agent < admin < owner | Least privilege | Agent-specific capability flags (P1) |
+
+**Lite deploy (constraint):** `docker-compose.yml` = web `:3100` + worker `:4000` + Redis. Postgres/Auth = **hosted Supabase**. Cron via GitHub Actions or host crontab hitting existing `/api/broadcasts/cron`, `/api/campaigns/cron`, `/api/automations/cron`, `/api/flows/cron`. Socket.IO optional.
+
+### 7.2 Digital marketing (new module, same account)
+
+Reuse contacts, tags, contact groups, campaigns, broadcasts. Add what marketing actually needs:
+
+| Capability | P | Notes |
+| --- | --- | --- |
+| **Lead object** (or contact + `lead_source` / stage) | P0 | Deduped on phone/email. Source: form, WhatsApp inbound, CSV, import from WA group |
+| **Consent ledger** | P0 | Channel (wa/email), source, timestamp, copy, revocation |
+| **Public landing pages** | P0 | Branded Doral page(s), form → contact + consent + UTM. Hosted on same Next.js app (`/p/[slug]`) |
+| **UTM + attribution** | P0 | `utm_source/medium/campaign/content/term` stored on lead; first-touch + last-touch |
+| **Campaigns (marketing)** | P0 | Tie existing drip + broadcasts to a marketing campaign id, landing, UTM pack |
+| **Content calendar** | P1 | Planned posts/sends (WhatsApp template, email, later social). Not an ads publisher |
+| **Ads hooks** | P2 | Meta CAPI / offline conversions from “Booked” / “Showed.” Do not build Ads Manager UI |
+| **Email** | P0 if already configured | Use existing SMTP/campaigns. Add List-Unsubscribe + honor unsub |
+
+Do **not** build a generic website CMS. One or few landings + form + thank-you is enough.
+
+### 7.3 In-app AI agents + A2A
+
+Today `/agents` is one BYOK bot (playground, setup, usage). Target: **named agents** with cards, skills, and tasks.
+
+**A2A (from [a2aproject/A2A](https://github.com/a2aproject/A2A), spec v1.0, Linux Foundation / Google):**
+
+- Agents are **opaque**. They do not share memory, prompts, or tools. They share **messages, tasks, artifacts**.
+- **Agent Card** JSON at a well-known URL (`/.well-known/agent-card.json` or per-agent `/api/a2a/{agent}/agent-card.json`): name, description, url, `protocolVersion`, skills, capabilities (streaming, push), `securitySchemes`.
+- **Task** is the unit of work: `submitted` → `working` → `input-required` | `completed` | `failed` | `canceled`. Long-running OK (broadcast review, content draft).
+- **Operations:** SendMessage, StreamMessage (SSE), GetTask, ListTasks, CancelTask, GetAgentCard.
+- **Bindings:** JSON-RPC 2.0 over HTTPS (default), plus HTTP/REST. Use JSON-RPC for the adapter; REST only if it maps 1:1.
+- **Auth:** scoped API key or OIDC later. Internal mesh uses service auth, not the public internet.
+- **Healthcare multi-agent** is an official A2A teaching example (flight/hotel analog → our qualifier/compliance/booking). Same pattern: orchestrator delegates; specialists stay narrow.
+
+**How it applies here**
+
+| Client agent | Server agent | Typical task |
+| --- | --- | --- |
+| Inbox auto-reply / orchestrator | Lead Qualifier | “Classify this inbound; return service + consent_ok + escalate?” |
+| Marketer UI / Content | Broadcast Compliance | “May I send campaign X to group Y? Return allow + drop list.” |
+| Lead Qualifier | Booking/Receptionist | “Offer 3 consult slots; no clinical reason codes.” |
+| Any | Analytics | “Summarize funnel for campaign Z this week.” |
+| Content | Compliance | “Review draft for PHI + STOP footer + template policy.” |
+
+External future: a third-party booking agent publishes its card; WaCRM Booking agent discovers it. v1 is **in-process / same-origin** cards so we do not depend on a public agent registry.
+
+### 7.4 A2A vs MCP (keep both)
+
+| | MCP (exists: `mcp-server/`, `docs/mcp.md`) | A2A (new adapter) |
+| --- | --- | --- |
+| Relationship | **Agent → tools/data** | **Agent → agent** |
+| WaCRM today | `list_contacts`, `send_message`, … wrapping `/api/v1` | None |
+| State | Stateless tool calls | Stateful **tasks** (hours-long review OK) |
+| Opacity | Tool schema is the contract | Card + skills; internals hidden |
+| Writes | Opt-in `WACRM_ENABLE_WRITES` / broadcasts | Per-skill; Compliance agent is a gate, not a tool wrapper |
+| Who uses it | Cursor, Claude Desktop, Ashish | In-app agents; later external agents |
+
+**Rule:** Agents call **MCP/tools** (or internal TS services) to read/write CRM. Agents call **A2A** to ask another agent to *reason and decide*. Do not wrap Lead Qualifier as a single MCP tool — that throws away negotiation (`input-required`, artifacts).
+
+---
+
+## 8. A2A agent roster and talk paths
+
+All five are **in-app**. Each publishes a card. Orchestrator (inbox bot or “Doral Concierge”) is a thin router, not a sixth personality dump.
+
+```
+  Lead (WhatsApp/web)
+        │
+        ▼
+  Concierge / auto-reply (existing WaCRM bot, constrained)
+        │  A2A SendMessage
+        ├──────────────► Lead Qualifier
+        │                     │
+        │                     ├─► Booking/Receptionist  (slots)
+        │                     └─► Analytics             (source quality)
+        │
+  Marketer UI
+        ├──────────────► Content
+        │                     └─► Broadcast Compliance
+        └──────────────► Broadcast Compliance  (pre-flight audience)
+```
+
+### 8.1 Lead Qualifier — P0
+
+- **Skills:** `qualify_inbound`, `score_lead`, `detect_phi_leak`.
+- **In:** redacted message text, existing tags, consent flags, UTM if any.
+- **Out artifact:** `{ service_interest, locale, urgency, score, escalate: boolean, reason_code }` — **no** symptom dump.
+- **Talks to:** Booking (if score ≥ threshold and consent_ok); Analytics (source); human inbox if escalate.
+- **Refuse:** persist or relay SSN/diagnosis/meds.
+
+### 8.2 Content — P1
+
+- **Skills:** `draft_whatsapp_template`, `draft_email`, `draft_landing_hero`, `calendar_item`.
+- **In:** campaign brief, brand voice, **forbidden-topic list**.
+- **Out:** draft + suggested footer. Never auto-send.
+- **Talks to:** Broadcast Compliance (required before any send path).
+
+### 8.3 Broadcast Compliance — P0
+
+- **Skills:** `preflight_audience`, `review_copy`, `enforce_opt_out`.
+- **In:** campaign id, group ids, copy, template name.
+- **Out:** `{ allow, blocked_contact_ids[], violations[] }` (missing consent, opted_out, PHI regex, missing STOP, template mismatch).
+- **Authority:** hard block. Orchestrator and `/api/v1/broadcasts` (when wired) must call this or an equivalent server function. Not advisory-only.
+
+### 8.4 Booking / Receptionist — P1
+
+- **Skills:** `offer_slots`, `confirm_consult`, `cancel_consult`, `handoff_human`.
+- **Pattern:** borrow **ideas** from omnichat/whatsapp-research (Google Calendar freeBusy, confirm “1/2/3”) — **reimplement** against WaCRM contacts + a thin `appointments` table. Do not merge that repo.
+- **Copy rules:** “consult / intro / tour” only. No reason-for-visit field on WhatsApp.
+- **Talks to:** Lead Qualifier (context); human on conflict or “results / medication” intent.
+
+### 8.5 Analytics — P1
+
+- **Skills:** `campaign_funnel`, `agent_task_stats`, `opt_out_rate`.
+- **In:** campaign id, date range. **Out:** aggregates only (no message bodies in artifacts).
+- **Talks to:** Marketer UI; optional weekly artifact to Content (“what landed”).
+
+### 8.6 Discovery and security
+
+- Internal registry table `a2a_agent_cards` + HTTP GET of cards (same origin).
+- Skills list is the allow-list. Unknown skill → A2A error, not silent MCP fallback.
+- Task store in Postgres (hosted Supabase). Artifacts scanned by the same PHI deny-list as inbound.
+- Streaming optional in v1; poll `GetTask` is enough for lite deploy.
+
+---
+
+## 9. Requirements
+
+### P0 — must have for Doral marketing go-live
+
+| ID | Requirement |
+| --- | --- |
+| P0-1 | Lite stack documented and runnable: web, worker, Redis, hosted Supabase, health checks, cron secrets. |
+| P0-2 | Existing CRM paths work: inbox, contacts, groups, broadcasts, automations, email campaigns. |
+| P0-3 | Custom-field / contact / notes / KB **deny-list** (SSN, MRN, insurance ID, clinical terms config). |
+| P0-4 | Consent ledger + landing form with explicit WhatsApp opt-in; UTM capture. |
+| P0-5 | Broadcast + campaign send **blocked** for opted-out / no-consent; STOP already honored — keep and extend. |
+| P0-6 | Lead Qualifier + Broadcast Compliance as in-app agents with Agent Cards + task log (even if first impl is same-process JSON-RPC). |
+| P0-7 | PHI volunteer path: do not store; escalate; canned “please call the office / use the patient portal.” |
+| P0-8 | Role gates: marketers send campaigns; agents cannot export full CSV without admin (confirm current behavior). |
+
+### P1 — next
+
+| ID | Requirement |
+| --- | --- |
+| P1-1 | Full public REST: contact-groups, campaigns, wa-groups read, deals/pipelines, consent, landings. |
+| P1-2 | WA **group admin** + reliable sync (subject, announce, add/remove participant) on Baileys provider. |
+| P1-3 | Content + Booking + Analytics agents on A2A. |
+| P1-4 | Content calendar UI. |
+| P1-5 | Booking table + Google Calendar OAuth (optional) — generic consults only. |
+| P1-6 | A2A adapter documented next to MCP; JS SDK `@a2a-js/sdk` or thin in-house JSON-RPC. |
+| P1-7 | Log redaction; task/audit trail for agent decisions. |
+| P1-8 | Doral theme (colors, logo, landing) — can slip to Phase 5 if brand pack late. |
+
+### P2 — later
+
+| ID | Requirement |
+| --- | --- |
+| P2-1 | Meta Conversions API / ads hooks. |
+| P2-2 | External A2A discovery (other orgs’ cards). |
+| P2-3 | Signed Agent Cards, OIDC between agents. |
+| P2-4 | Multi-landing CMS, A/B tests. |
+| P2-5 | Voice notes → text (do not ingest clinical audio). |
+
+---
+
+## 10. Success metrics
+
+| Metric | Target (first 90 days after P0) |
+| --- | --- |
+| Time-to-first-response (human or bot) on new WhatsApp lead | < 5 min during staffed hours; < 15 min off-hours bot |
+| % marketing sends blocked correctly (no-consent / STOP) | 100% of sampled audits |
+| PHI deny-list hits that were **not** persisted | 100% (spot-check task artifacts + contact fields) |
+| Lead → Booked consult (generic) | Track; baseline then +20% vs pre-attribution chaos |
+| UTM coverage on new web leads | ≥ 90% |
+| Agent task success (completed vs failed) | Logged; Qualifier + Compliance used on ≥ 80% of inbound marketing threads |
+| Opt-out processing | STOP applied before next send (already a WaCRM invariant — keep tests) |
+| Lite deploy recovery | `docker compose up` + hosted Supabase; `/api/health` + worker `/health` green |
+
+Vanity follower counts are not success. **Consent integrity and no-PHI-on-WhatsApp** outrank volume.
+
+---
+
+## 11. Risks
+
+| Risk | Mitigation |
+| --- | --- |
+| Staff or agent puts PHI on WhatsApp | Deny-list + Compliance agent + training copy in UI; escalate path |
+| Meta/TCPA complaint | Consent ledger + STOP + template footers; no purchased lists |
+| Baileys ban / unofficial API | Prefer Cloud API for Doral production marketing; Baileys for group sync only if needed |
+| A2A over-engineering | v1 same-origin JSON-RPC + cards; no public registry |
+| LLM exfil via KB or prompt | No clinical docs in KB; system prompt forbids PHI fields; artifact scan |
+| Hosted Supabase as BA | Legal: marketing CRM BAA with Supabase if they process PII; still **not** a WhatsApp HIPAA fix |
+| Dual-write MCP vs A2A | Writes only through existing services; agents never bypass Compliance for broadcasts |
+| Scope creep from omnichat (voice, Stripe, SDI) | Explicit non-merge; booking pattern only |
+
+---
+
+## 12. Compliance summary (operator checklist)
+
+- [ ] WhatsApp used for **marketing and generic scheduling only**
+- [ ] No BAA claimed for WhatsApp; patient portal / phone for clinical
+- [ ] Consent recorded before first marketing WA
+- [ ] STOP / unsubscribe works on WA and email
+- [ ] Deny-list on contacts, notes, templates, KB, A2A artifacts
+- [ ] LLM keys BYOK; no training on Doral chats with vendors if contract forbids
+- [ ] Privacy policy + terms updated for Doral + AI + subprocessors
+- [ ] Staff role: agents cannot disable Compliance
+- [ ] This PRD is **not** legal advice — clinic counsel reviews before go-live
+
+---
+
+## 13. Lite deploy constraint
+
+**Allowed production shape for all phases until explicitly changed:**
+
+- `apps/web` Next.js `:3100`
+- `apps/worker` Baileys/BullMQ `:4000`
+- Redis 7
+- Hosted Supabase (migrations `001`–current via `db push`)
+- Env from `.env` / hPanel; `SUPABASE_SERVICE_ROLE_KEY` server-only
+- Cron secrets: `CRON_SECRET`, `AUTOMATION_CRON_SECRET`
+
+**Not in v1 Compose:** local Postgres, Vector analytics, Edge Functions, extra agent runtimes, Kubernetes.
+
+A2A servers run **inside the web app** (Route Handlers). No new container unless Phase 4 proves CPU isolation is required.
+
+---
+
+## 14. Adjacent repos (reference only)
+
+| Repo | Steal | Do not |
+| --- | --- | --- |
+| `D:/Projects/whatsapp-research` | Receptionist flows, GDPR-ish consent language (adapt to US) | Merge app, Stripe, Italian SDI |
+| `D:/Projects/omnichat` | Booking calendar / freeBusy / confirm-by-number UX | Voice, their Next app, their schema |
+| waapi-gateway ideas | Thin gateway thinking for provider isolation | New standalone gateway service |
+
+---
+
+## 15. Open questions for Ashish
+
+1. Cloud API number vs Baileys for Doral production? **Recommendation:** Cloud API for patient-facing sends; Baileys only if group admin is required.
+2. Google Calendar in P1 or paper/phone booking until then?
+3. Counsel sign-off date before first marketing blast.
+4. Brand tokens (hex, logo) for Phase 5.
+
+---
+
+*End of PRD. Implementation sequence is in PLAN-doral-healthcare.md.*
