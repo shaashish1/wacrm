@@ -17,7 +17,9 @@ import {
   markRecipientsQueued,
   type SendQueueJobInput,
 } from '@/lib/broadcasts/enqueue-send-queue'
+import { supabaseAdmin } from '@/lib/flows/admin-client'
 import type { MessageTemplate } from '@/types'
+import { loadMarketingEligibleIds } from '@/lib/consent'
 
 interface BroadcastResult {
   phone: string
@@ -191,6 +193,16 @@ export async function POST(request: Request) {
     let sentCount = 0
     let failedCount = 0
 
+    const gateIds = recipients
+      .map((r) => r.contact_id)
+      .filter((id): id is string => Boolean(id))
+    const eligible = await loadMarketingEligibleIds(
+      supabase,
+      accountId,
+      gateIds,
+      'whatsapp',
+    )
+
     for (const recipient of recipients) {
       const sanitized = sanitizePhoneForMeta(recipient.phone)
 
@@ -199,6 +211,16 @@ export async function POST(request: Request) {
           phone: recipient.phone,
           status: 'failed',
           error: 'Invalid phone number format',
+        })
+        failedCount++
+        continue
+      }
+
+      if (!recipient.contact_id || !eligible.has(recipient.contact_id)) {
+        results.push({
+          phone: recipient.phone,
+          status: 'failed',
+          error: 'No marketing consent or opted out',
         })
         failedCount++
         continue
@@ -303,6 +325,16 @@ async function enqueuePlainTextBroadcast(accountId: string, body: {
   let sentCount = 0
   let failedCount = 0
 
+  const gateIds = recipients
+    .map((r) => r.contact_id)
+    .filter((id): id is string => Boolean(id))
+  const eligible = await loadMarketingEligibleIds(
+    supabaseAdmin(),
+    accountId,
+    gateIds,
+    'whatsapp',
+  )
+
   for (const recipient of recipients) {
     const phone = typeof recipient.phone === 'string' ? recipient.phone : ''
     const text = typeof recipient.body === 'string' ? recipient.body : ''
@@ -322,6 +354,16 @@ async function enqueuePlainTextBroadcast(accountId: string, body: {
         phone,
         status: 'failed',
         error: 'Invalid phone number format',
+      })
+      failedCount++
+      continue
+    }
+
+    if (!recipient.contact_id || !eligible.has(recipient.contact_id)) {
+      results.push({
+        phone,
+        status: 'failed',
+        error: 'No marketing consent or opted out',
       })
       failedCount++
       continue

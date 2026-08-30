@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '@/lib/email/send';
 import { wwebjsMessageQueue } from '@/lib/queue/bullmq';
+import { loadMarketingEligibleIds } from '@/lib/consent';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -62,6 +63,30 @@ export async function GET(request: Request) {
         await supabase
           .from('campaign_enrollments')
           .update({ status: 'completed', completed_at: new Date().toISOString() })
+          .eq('id', enrollment.id);
+        continue;
+      }
+
+      const channel =
+        currentStepObj.channel === 'email' ? 'email' : 'whatsapp';
+      const eligible = contact?.id
+        ? await loadMarketingEligibleIds(
+            supabase,
+            campaign.account_id,
+            [contact.id],
+            channel,
+          )
+        : new Set<string>();
+      if (!contact?.id || !eligible.has(contact.id)) {
+        await supabase.from('campaign_events').insert({
+          enrollment_id: enrollment.id,
+          step_id: currentStepObj.id,
+          event_type: 'failed',
+          metadata: { error: 'No marketing consent or opted out' },
+        });
+        await supabase
+          .from('campaign_enrollments')
+          .update({ status: 'paused' })
           .eq('id', enrollment.id);
         continue;
       }

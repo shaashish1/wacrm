@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { IMessagingProvider } from '@wacrm/shared';
 import { RateGovernor } from './rate-governor';
 import { sendCloudApiTemplate } from './cloud-api-send';
+import { contactMayReceiveMarketing } from './consent';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -94,6 +95,25 @@ export class SendQueueDrainer {
           );
           if (options.broadcastId) await this.onBroadcastProgress(options.broadcastId);
           return;
+        }
+        const isMarketing = Boolean(options.broadcastRecipientId || options.broadcastId);
+        if (isMarketing) {
+          const allowed = await contactMayReceiveMarketing(
+            supabase,
+            options.contactId,
+            'whatsapp',
+          );
+          if (!allowed) {
+            await this.completeJob(row, null);
+            await this.markRecipient(
+              options.broadcastRecipientId,
+              'failed',
+              'No marketing consent or opted out',
+              null,
+            );
+            if (options.broadcastId) await this.onBroadcastProgress(options.broadcastId);
+            return;
+          }
         }
       }
 

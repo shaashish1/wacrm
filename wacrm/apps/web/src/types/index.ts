@@ -110,6 +110,14 @@ export interface Contact {
   avatar_url?: string;
   opted_out?: boolean;
   opted_out_at?: string;
+  utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
+  utm_content?: string | null;
+  utm_term?: string | null;
+  landing_id?: string | null;
+  first_touch_at?: string | null;
+  last_touch_at?: string | null;
   created_at: string;
   updated_at: string;
   /** Hydrated by queries that embed `contact_tags(tags(*))` (e.g. the

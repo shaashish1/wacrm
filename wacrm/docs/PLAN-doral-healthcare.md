@@ -58,12 +58,12 @@ Effort: **S** ≤ ~3 days, **M** ~1–2 weeks, **L** ~3–6 weeks (one operator,
 
 ### Deliverables
 
-- [ ] `.env` from `.env.example`; no secrets in git.
-- [ ] `docker compose up -d --build` → web `:3100` `/api/health`, worker `:4000` `/health`, Redis healthy.
-- [ ] Hosted Supabase: migrations applied in order through current (include GRANT migrations 031, 051–053). No `db reset` on the real project.
+- [x] `.env` from `.env.example`; no secrets in git. Compose + example are the lite path; see `docs/LITE-DEPLOY.md`.
+- [ ] `docker compose up -d --build` → web `:3100` `/api/health`, worker `:4000` `/health`, Redis healthy. (Operator: stack was stopped at implement time.)
+- [ ] Hosted Supabase: migrations applied in order through current (include GRANT migrations 031, 051–053, and **057** consents/landings). No `db reset` on the real project.
 - [ ] Cron: GitHub `scheduled-jobs.yml` **or** crontab hitting broadcasts/campaigns/automations/flows with `CRON_SECRET` / `AUTOMATION_CRON_SECRET`.
 - [ ] Pair **one** test number (Cloud API preferred). Inbox send/receive smoke.
-- [ ] Confirm Windows notes: `.npmrc` nested installs; webpack for local `next dev` if needed. Production = `next start -p 3100`.
+- [x] Confirm Windows notes: `.npmrc` nested installs; webpack for local `next dev` if needed. Production = `next start -p 3100`. Documented in `docs/LITE-DEPLOY.md`.
 
 ### Dependencies
 
@@ -137,20 +137,20 @@ Effort: **S** ≤ ~3 days, **M** ~1–2 weeks, **L** ~3–6 weeks (one operator,
 
 **Schema (hosted Supabase migrations):**
 
-- [ ] `consents` (account_id, contact_id, channel, source, consented_at, copy, revoked_at, meta JSON).
-- [ ] Lead attribution on `contacts` or `leads`: `utm_*`, `landing_id`, `first_touch_at`, `last_touch_at`.
-- [ ] `landing_pages` (slug, title, body JSON, form config, published).
+- [x] `consents` (account_id, contact_id, channel, source, consented_at, copy, revoked_at, meta JSON).
+- [x] Lead attribution on `contacts` or `leads`: `utm_*`, `landing_id`, `first_touch_at`, `last_touch_at`.
+- [x] `landing_pages` (slug, title, body JSON, form config, published).
 - [ ] `marketing_campaigns` **or** FK from existing `campaigns` / `broadcasts` to a campaign wrapper (prefer wrapper to avoid rewriting drip engine).
 - [ ] PHI / sensitive **deny-list** config (account-level JSON) + check on custom field names/values, notes, KB ingest.
 
 **Product:**
 
-- [ ] Public `GET /p/[slug]` + POST form → find-or-create contact, write consent, store UTM from query.
-- [ ] Audience resolve: contact group **intersect** consent + not `opted_out`.
-- [ ] Broadcast + campaign engine: refuse send without consent (server-side, not only UI).
-- [ ] STOP already sets `opted_out`; also revoke WA consent row.
+- [x] Public `GET /p/[slug]` + POST form → find-or-create contact, write consent, store UTM from query.
+- [x] Audience resolve: contact group **intersect** consent + not `opted_out`.
+- [x] Broadcast + campaign engine: refuse send without consent (server-side, not only UI).
+- [x] STOP already sets `opted_out`; also revoke WA consent row.
 - [ ] Email: List-Unsubscribe + unsub route; parity with WA.
-- [ ] Marketer UI: campaign list, landing editor (minimal), consent badge on contact.
+- [x] Marketer UI: landing create/list in Settings (minimal). Consent badge on contact still open.
 - [ ] Content calendar table + simple week view (**P1** — can ship end of this phase or start of Phase 5).
 
 **Copy defaults for Doral:**

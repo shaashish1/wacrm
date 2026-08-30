@@ -32,6 +32,8 @@ export function buildPlainSendJobs(args: {
     const contact = r.contact;
     const phone = contact?.phone;
     if (!phone || contact?.opted_out) continue;
+    // Consent is enforced by the caller (audience resolver) and again
+    // in the worker drain. Skip opted-out here as a last local check.
     const sanitized = sanitizePhoneForMeta(phone);
     if (!isValidE164(sanitized)) continue;
     const text = substitutePlainText(args.body, contact);

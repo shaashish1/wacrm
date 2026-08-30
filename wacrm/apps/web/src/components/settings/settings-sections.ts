@@ -10,6 +10,7 @@ import {
   User,
   UsersRound,
   Zap,
+  Globe,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -32,6 +33,7 @@ export const SETTINGS_SECTIONS = [
   'fields',
   'deals',
   'members',
+  'landings',
   'api',
   'meta',
 ] as const;
@@ -59,6 +61,7 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   fields: { id: 'fields', label: 'Fields & tags', icon: Tags, group: 'workspace' },
   deals: { id: 'deals', label: 'Deals & currency', icon: Coins, group: 'workspace' },
   members: { id: 'members', label: 'Team members', icon: UsersRound, group: 'workspace' },
+  landings: { id: 'landings', label: 'Landings', icon: Globe, group: 'workspace' },
   api: { id: 'api', label: 'API keys', icon: KeyRound, group: 'workspace' },
   meta: { id: 'meta', label: 'Meta Conversions', icon: PlugZap, group: 'workspace' },
 };

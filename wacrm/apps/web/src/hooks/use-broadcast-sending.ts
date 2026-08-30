@@ -9,6 +9,7 @@ import {
   substitutePlainText,
   type VariableMapping,
 } from '@/lib/broadcasts/personalize';
+import { filterMarketingEligible, NO_CONSENT_MESSAGE } from '@/lib/consent';
 
 export type { VariableMapping };
 export { resolveVariables, substitutePlainText };
@@ -215,8 +216,8 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
     }
 
     contacts = contacts.filter((c) => !c.opted_out);
-
-    return contacts;
+    if (!accountId) return contacts;
+    return filterMarketingEligible(supabase, accountId, contacts, 'whatsapp');
   }
 
   /**
@@ -357,7 +358,7 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
     setProgress(5);
     const contacts = await resolveAudience(payload.audience);
     if (contacts.length === 0) {
-      throw new Error('No contacts found for this audience.');
+      throw new Error(NO_CONSENT_MESSAGE);
     }
 
     const scheduledAt = payload.scheduledAt?.trim() || null;
@@ -532,7 +533,7 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
       const contacts = await resolveAudience(payload.audience);
 
       if (contacts.length === 0) {
-        throw new Error('No contacts found for this audience.');
+        throw new Error(NO_CONSENT_MESSAGE);
       }
 
       const scheduledAt = payload.scheduledAt?.trim() || null;

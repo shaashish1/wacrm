@@ -2,6 +2,8 @@
 
 This repo can run as **Next.js web + worker + Redis**, with **Supabase hosted** (or local CLI for development). Production HTTP for the CRM is **port 3100** (`next start -p 3100`). The worker HTTP/Socket.IO port defaults to **4000**.
 
+**Doral / Windows copy-paste commands:** [LITE-DEPLOY.md](./LITE-DEPLOY.md).
+
 ## Env
 
 1. Copy [`.env.example`](../.env.example) to `.env` (Compose) and/or [`apps/web/.env.local.example`](../apps/web/.env.local.example) to `apps/web/.env.local` (local `next dev`).
@@ -19,7 +21,7 @@ This repo can run as **Next.js web + worker + Redis**, with **Supabase hosted** 
 | Studio | `http://127.0.0.1:54323` | Dashboard |
 | Migrations | applied on start | `npx supabase db push` or SQL editor |
 
-Apply **migrations 001–056** in order (including GRANT migrations **031, 051–053**). Do not `supabase db reset` on a database you care about.
+Apply **migrations 001–current** in order (including GRANT migrations **031, 051–053**, and **057** consents/landings). Do not `supabase db reset` on a database you care about.
 
 On **Windows Docker Desktop**, local `[analytics]` (Vector log router) and `[edge_runtime]` are **disabled** in `supabase/config.toml`. Vector cannot bind the Docker socket (`NetworkUnreachable`). This project has **no Edge Functions**. Hosted Supabase still has platform logs and can run functions if you add them later.
 

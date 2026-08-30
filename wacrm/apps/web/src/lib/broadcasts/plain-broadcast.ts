@@ -9,6 +9,7 @@ import {
 import { buildPlainSendJobs, type PlainMediaKind } from '@/lib/broadcasts/plain-jobs';
 import { sanitizePhoneForMeta, isValidE164 } from '@/lib/whatsapp/phone-utils';
 import type { Contact } from '@/types';
+import { filterMarketingEligible, NO_CONSENT_MESSAGE } from '@/lib/consent';
 
 const MAX_RECIPIENTS = 1000;
 
@@ -65,7 +66,7 @@ async function resolveAudienceContacts(
     if (error) {
       throw new BroadcastError('internal', 'Failed to resolve audience', 500);
     }
-    return data ?? [];
+    return filterMarketingEligible(db, accountId, data ?? [], 'whatsapp');
   }
 
   if (audience.type === 'tags') {
@@ -149,7 +150,12 @@ async function fetchContactsByIds(
     }
     rows.push(...(data ?? []));
   }
-  return rows.filter((c) => !c.opted_out);
+  return filterMarketingEligible(
+    db,
+    accountId,
+    rows.filter((c) => !c.opted_out),
+    'whatsapp',
+  );
 }
 
 /**
@@ -217,6 +223,12 @@ export async function createAndEnqueuePlainBroadcast(
       seen.add(r.id);
       return true;
     });
+    contactRows = await filterMarketingEligible(
+      db,
+      accountId,
+      contactRows,
+      'whatsapp',
+    );
   } else if (params.audience) {
     contactRows = await resolveAudienceContacts(db, accountId, params.audience);
   }
@@ -229,7 +241,7 @@ export async function createAndEnqueuePlainBroadcast(
     );
   }
   if (contactRows.length === 0) {
-    throw new BroadcastError('bad_request', 'No recipients had a valid phone number', 400);
+    throw new BroadcastError('bad_request', NO_CONSENT_MESSAGE, 400);
   }
 
   const { data: broadcast, error: bErr } = await db

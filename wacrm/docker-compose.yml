@@ -1,6 +1,7 @@
-# Production stack: Next.js web + Baileys/BullMQ worker + Redis.
+# Lite production stack: Next.js web :3100 + Baileys/BullMQ worker :4000 + Redis.
 # Postgres/Auth live in hosted Supabase (or `npx supabase start` locally).
 # Secrets: copy `.env.example` → `.env`. Do not bake keys into the image.
+# Exact Doral / Windows commands: docs/LITE-DEPLOY.md
 
 services:
   redis:

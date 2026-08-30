@@ -2,7 +2,13 @@
  * Opt-out keywords. Whole-message match or first whitespace-separated
  * token, case-insensitive.
  */
-const OPT_OUT_TOKENS = new Set(['stop', 'unsubscribe']);
+const OPT_OUT_TOKENS = new Set([
+  'stop',
+  'unsubscribe',
+  'end',
+  'quit',
+  'cancel',
+]);
 
 export function isOptOutText(text: string | null | undefined): boolean {
   if (!text) return false;

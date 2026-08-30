@@ -15,6 +15,7 @@ import { BaileysProvider } from './providers/baileys-provider';
 import { startWebhookDispatcherWorker, dispatchToWebhook, dispatchStatusToWebhook } from './webhook-dispatcher';
 import { httpServer, io } from './socket';
 import { isOptOutText } from './opt-out';
+import { revokeMarketingConsent } from './consent';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -46,6 +47,9 @@ async function main() {
         if (error) {
           console.warn('[Baileys] opt-out update failed:', error.message);
         } else {
+          await revokeMarketingConsent(supabase, accountId, {
+            phoneNormalized: phone,
+          });
           console.log(`[Baileys] Contact ${phone} opted out for ${accountId}`);
         }
       }

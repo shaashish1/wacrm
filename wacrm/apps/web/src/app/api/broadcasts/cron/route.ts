@@ -18,6 +18,7 @@ import { buildSendComponents } from '@/lib/whatsapp/template-send-builder';
 import { isMessageTemplate } from '@/lib/whatsapp/template-row-guard';
 import { sanitizePhoneForMeta, isValidE164 } from '@/lib/whatsapp/phone-utils';
 import type { Contact, MessageTemplate } from '@/types';
+import { loadMarketingEligibleIds } from '@/lib/consent';
 
 /**
  * Drain due scheduled broadcasts onto send_queue.
@@ -196,6 +197,35 @@ async function enqueueClaimedBroadcast(broadcast: {
     .in('status', ['pending', 'queued']);
   if (error) throw error;
 
+  const contactIdsForGate = (recipients ?? [])
+    .map((r) => r.contact?.id as string | undefined)
+    .filter((id): id is string => Boolean(id));
+  const eligible = await loadMarketingEligibleIds(
+    admin,
+    broadcast.account_id,
+    contactIdsForGate,
+    'whatsapp',
+  );
+  const blockedIds = (recipients ?? [])
+    .filter((r) => {
+      const cid = r.contact?.id as string | undefined;
+      return Boolean(cid && !eligible.has(cid));
+    })
+    .map((r) => r.id as string);
+  for (let i = 0; i < blockedIds.length; i += 200) {
+    await admin
+      .from('broadcast_recipients')
+      .update({
+        status: 'failed',
+        error_message: 'No marketing consent or opted out',
+      })
+      .in('id', blockedIds.slice(i, i + 200));
+  }
+  const allowedRecipients = (recipients ?? []).filter((r) => {
+    const cid = r.contact?.id as string | undefined;
+    return Boolean(cid && eligible.has(cid));
+  });
+
   const isPlain = broadcast.template_name === 'plain_text';
   const jobs: SendQueueJobInput[] = [];
   const queuedIds: string[] = [];
@@ -208,7 +238,7 @@ async function enqueueClaimedBroadcast(broadcast: {
       body: String(vars.body ?? ''),
       mediaUrl: typeof vars.mediaUrl === 'string' ? vars.mediaUrl : undefined,
       mediaKind: (vars.mediaKind as PlainMediaKind) || 'image',
-      recipients: (recipients ?? []).map((r) => ({
+      recipients: allowedRecipients.map((r) => ({
         id: r.id as string,
         contact_id: r.contact_id as string | null,
         contact: r.contact as Contact | null,
@@ -234,7 +264,7 @@ async function enqueueClaimedBroadcast(broadcast: {
         ? broadcast.audience_filter.headerMediaUrl
         : undefined;
 
-    const contactIds = (recipients ?? [])
+    const contactIds = allowedRecipients
       .map((r) => r.contact?.id)
       .filter((id): id is string => Boolean(id));
     const customIndex = new Map<string, Map<string, string>>();
@@ -250,7 +280,7 @@ async function enqueueClaimedBroadcast(broadcast: {
       }
     }
 
-    for (const r of recipients ?? []) {
+    for (const r of allowedRecipients) {
       const contact = r.contact as Contact | null;
       const phone = contact?.phone;
       if (!phone || contact?.opted_out) continue;

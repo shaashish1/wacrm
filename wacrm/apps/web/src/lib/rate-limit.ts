@@ -129,6 +129,9 @@ export const RATE_LIMITS = {
    *  retry a handful of times under flaky connectivity without
    *  enabling brute-force token enumeration. With 256-bit tokens the
    *  enumeration risk is theoretical; this is belt-and-braces. */
+  /** Public landing form (per IP). 10/hour is enough for a real lead
+   *  and bounds scrapers filling wellness forms. */
+  landingSubmit: { limit: 10, windowMs: 60 * 60_000 },
   invitationPeek: { limit: 30, windowMs: 60_000 },
   /** Invitation redeem (authed, per-IP+user). Tighter than peek —
    *  successful redemption mutates two profiles and an invite row, so

@@ -3,7 +3,13 @@
  * token, case-insensitive. Used by the inbound webhook and the worker
  * so STOP/UNSUBSCRIBE is honored even if one path is skipped.
  */
-const OPT_OUT_TOKENS = new Set(['stop', 'unsubscribe']);
+const OPT_OUT_TOKENS = new Set([
+  'stop',
+  'unsubscribe',
+  'end',
+  'quit',
+  'cancel',
+]);
 
 export function isOptOutText(text: string | null | undefined): boolean {
   if (!text) return false;

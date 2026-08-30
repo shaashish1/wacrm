@@ -10,6 +10,7 @@ import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import { isOptOutText } from '@/lib/opt-out'
+import { revokeMarketingConsent } from '@/lib/consent'
 import {
   handleTemplateWebhookChange,
   isTemplateWebhookField,
@@ -766,6 +767,12 @@ async function processMessage(
       .from('contacts')
       .update({ opted_out: true, opted_out_at: new Date().toISOString() })
       .eq('id', contactRecord.id)
+    await revokeMarketingConsent(supabaseAdmin(), accountId, {
+      contactId: contactRecord.id,
+      phoneNormalized:
+        (contactRecord.phone_normalized as string | undefined) ||
+        normalizePhone(senderPhone),
+    })
   }
   const automationTriggers: (
     | 'new_contact_created'
