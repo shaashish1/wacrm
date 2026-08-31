@@ -1,5 +1,6 @@
-# PLAN — Doral Healthcare and Wellness
+# PLAN — Doral Healthcare and Wellness (AudienceGate, first customer)
 
+**Product:** AudienceGate (public brand). Repo stays `wacrm`.  
 **Implements:** [PRD-doral-healthcare.md](./PRD-doral-healthcare.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Repo:** `shaashish1/wacrm` — this product only  
@@ -145,7 +146,7 @@ Every story has acceptance criteria, **already built vs gap**, and a phase. IDs 
 
 ## 2. Phases
 
-### Phase 0 — Freeze WaCRM as base
+### Phase 0 — Freeze AudienceGate (`wacrm` repo) as base
 
 **Goal:** One chosen codebase. Everyone builds on current `main`.
 
@@ -311,7 +312,7 @@ Find these **now**. Do not discover them on the first blast. This is not legal a
 | **Device / QR limits** | WA Web sessions drop; one phone, limited linked devices; QR expires. | Runbook: re-pair. Persist session volume. Alert on `sessions` disconnected. Do not run two workers on one session. |
 | **Cloud API vs Baileys split-brain** | Templates/interactive only on Cloud API; groups only useful on Baileys. | One `accounts.provider_type`. Document which number is which. Do not dual-send the same audience. |
 | **Meta template rejection** | Clinical or promotional language blocked. | Generic consult copy; no condition names. |
-| **24-hour service window** | Cloud API session messages vs templates. | Existing WaCRM/Meta rules; scheduled marketing = templates on Cloud API. |
+| **24-hour service window** | Cloud API session messages vs templates. | Existing AudienceGate/Meta rules; scheduled marketing = templates on Cloud API. |
 | **Rate limits (official)** | Cloud API throughput, quality rating, pairing bans. | Respect Meta limits; separate from Baileys 250/day. Pause on quality drop. |
 | **Rate limits (Baileys)** | 250/day + warming; large audience takes days. | Preview “est. completion.” Split campaigns. Do not raise the cap without evidence. |
 | **Jitter quality** | Uniform 1–3s is still a tight burst for hundreds of sends. | Ticket: configurable window, occasional longer pause, business-hours only. Still not a ban warranty. |

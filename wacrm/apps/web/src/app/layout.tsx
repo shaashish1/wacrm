@@ -31,10 +31,10 @@ const sora = Sora({
 
 export const metadata: Metadata = {
   title: {
-    default: "wacrm",
-    template: "%s — wacrm",
+    default: "AudienceGate",
+    template: "%s — AudienceGate",
   },
-  description: "Self-hostable CRM template for WhatsApp.",
+  description: "WhatsApp campaign CRM with a hard consent gate.",
   robots: {
     index: false,
     follow: false,

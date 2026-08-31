@@ -1,4 +1,4 @@
-# BASELINE — WaCRM is the Doral / WhatsApp base
+# BASELINE — AudienceGate (wacrm repo; first customer Doral)
 
 **Repo:** `shaashish1/wacrm` (`main`)  
 **Frozen product SHA:** `e65104b87a9ae344d66e0507811ceccb12bf6ffd`  
@@ -13,7 +13,7 @@ All Doral work extends **this repo only**. Do not fork a second WhatsApp stack.
 
 ## In scope (build here)
 
-- Existing WaCRM: inbox, contacts, contact-groups, wa-groups sync/import, broadcasts, email campaigns, automations, flows, pipelines, agents playground, MCP (`mcp-server` / `wacrm-mcp`), `/api/v1` (me, messages, contacts, conversations, broadcasts, webhooks).
+- Existing AudienceGate (`wacrm` codebase): inbox, contacts, contact-groups, wa-groups sync/import, broadcasts, email campaigns, automations, flows, pipelines, agents playground, MCP (`mcp-server` / `wacrm-mcp`), `/api/v1` (me, messages, contacts, conversations, broadcasts, webhooks).
 - Lite production: **web `:3100` + worker `:4000` + Redis + hosted Supabase**. See [production.md](./production.md).
 - Later phases on this tree: consent/marketing, full REST + group sync/admin, in-app A2A agents, Doral theme. Sequence and challenges are in the PLAN.
 

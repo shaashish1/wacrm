@@ -1,9 +1,9 @@
 # PRD — Doral Healthcare and Wellness
 
-**Product:** WaCRM + Digital Marketing + in-app AI Agents (A2A)  
-**Customer:** Doral Healthcare and Wellness (US wellness / clinic marketing)  
+**Product:** AudienceGate (WhatsApp campaign CRM + digital marketing + in-app A2A)  
+**Customer:** Doral Healthcare and Wellness (US wellness / clinic marketing) — tenant #1, not the product name  
 **Operator:** Ashish (data scientist; builds and runs the stack)  
-**Base repo:** `shaashish1/wacrm` — single WhatsApp CRM base  
+**Base repo:** `shaashish1/wacrm` — internal name; public brand is AudienceGate  
 **Status:** Planning only. No product features in this change.  
 **Date:** 2026-08-31  
 **Companions:** [PLAN-doral-healthcare.md](./PLAN-doral-healthcare.md) (user stories + challenges), [ARCHITECTURE.md](./ARCHITECTURE.md)
@@ -28,7 +28,7 @@ Doral needs to:
 4. Book or hand off consults without putting PHI on WhatsApp.
 5. Measure which campaign, landing page, and UTM produced the lead.
 
-Today those jobs are split across WaCRM (inbox, broadcasts, automations, a single AI playground), ad hoc marketing tools, and ideas sitting in adjacent repos (`whatsapp-research`, `omnichat`, waapi-gateway notes). Merging those repos is **out of scope**. This product **extends WaCRM**.
+Today those jobs are split across AudienceGate (inbox, broadcasts, automations, a single AI playground), ad hoc marketing tools, and ideas sitting in adjacent repos (`whatsapp-research`, `omnichat`, waapi-gateway notes). Merging those repos is **out of scope**. This product **extends the `wacrm` codebase**.
 
 ---
 
@@ -49,7 +49,7 @@ System actors (not humans): Lead Qualifier, Content, Broadcast Compliance, Booki
 
 ### Goals
 
-- Keep **all existing WaCRM CRM value**: inbox, contacts, tags, custom fields, contact groups, pipelines, broadcasts, automations, flows, WA group **sync/import**, email drip campaigns, AI playground + knowledge base + auto-reply, MCP server, `/api/v1` keys.
+- Keep **all existing AudienceGate CRM value**: inbox, contacts, tags, custom fields, contact groups, pipelines, broadcasts, automations, flows, WA group **sync/import**, email drip campaigns, AI playground + knowledge base + auto-reply, MCP server, `/api/v1` keys.
 - Add a **marketing module** on the same account: leads, campaign attribution, public landing + lead capture, UTM, content calendar, consent ledger.
 - Add **in-app agents** with A2A (Agent Cards, task lifecycle, discovery). MCP stays for “tools + data.” A2A is for “agent ↔ agent.”
 - Ship first on **lite deploy**: web + worker + Redis + **hosted Supabase**. No extra Postgres in Compose.
@@ -134,7 +134,7 @@ US-1 (group extract) and US-2 (Baileys broadcast) do **not** change this. A QR-p
 - Preferred location, language, time window.
 - Campaign / UTM / landing id.
 - Appointment **request** language: “consult,” “intro visit,” “tour” — not “follow-up for [condition].”
-- Opt-out flag. Honor `STOP` / `UNSUBSCRIBE` (already in WaCRM `opt-out.ts`; extend to `END`, `QUIT`, `CANCEL` if Meta requires).
+- Opt-out flag. Honor `STOP` / `UNSUBSCRIBE` (already in AudienceGate `opt-out.ts`; extend to `END`, `QUIT`, `CANCEL` if Meta requires).
 
 ### 6.2 Forbidden (block at input, template, KB, and A2A artifact)
 
@@ -150,7 +150,7 @@ US-1 (group extract) and US-2 (Baileys broadcast) do **not** change this. A QR-p
 - Landing forms: unchecked-by-default WhatsApp opt-in. Email can be separate.
 - Every marketing template footer: “Reply STOP to opt out.”
 - Broadcast Compliance agent **must refuse** send if any recipient lacks consent or is `opted_out`.
-- 24-hour service window vs template rules stay as WaCRM/Meta already enforce.
+- 24-hour service window vs template rules stay as AudienceGate/Meta already enforce.
 
 ### 6.4 Data residency and subprocessors
 
@@ -161,11 +161,11 @@ US-1 (group extract) and US-2 (Baileys broadcast) do **not** change this. A QR-p
 
 ## 7. Feature set
 
-### 7.1 WhatsApp CRM — maximize existing WaCRM
+### 7.1 WhatsApp CRM — maximize existing AudienceGate
 
 Ship Doral on what already works. Do not rebuild.
 
-| Already in WaCRM | Doral use | Gap to close later |
+| Already in AudienceGate | Doral use | Gap to close later |
 | --- | --- | --- |
 | Shared inbox, assignment, notes | Front desk | PHI-safe note templates (P1) |
 | Contacts, tags, custom fields, CSV | Lead records | Custom-field **deny list** for SSN/MRN (P0) |
@@ -223,14 +223,14 @@ Today `/agents` is one BYOK bot (playground, setup, usage). Target: **named agen
 | Any | Analytics | “Summarize funnel for campaign Z this week.” |
 | Content | Compliance | “Review draft for PHI + STOP footer + template policy.” |
 
-External future: a third-party booking agent publishes its card; WaCRM Booking agent discovers it. v1 is **in-process / same-origin** cards so we do not depend on a public agent registry.
+External future: a third-party booking agent publishes its card; the AudienceGate Booking agent discovers it. v1 is **in-process / same-origin** cards so we do not depend on a public agent registry.
 
 ### 7.4 A2A vs MCP (keep both)
 
 | | MCP (exists: `mcp-server/`, `docs/mcp.md`) | A2A (new adapter) |
 | --- | --- | --- |
 | Relationship | **Agent → tools/data** | **Agent → agent** |
-| WaCRM today | `list_contacts`, `send_message`, … wrapping `/api/v1` | None |
+| AudienceGate today | `list_contacts`, `send_message`, … wrapping `/api/v1` | None |
 | State | Stateless tool calls | Stateful **tasks** (hours-long review OK) |
 | Opacity | Tool schema is the contract | Card + skills; internals hidden |
 | Writes | Opt-in `WACRM_ENABLE_WRITES` / broadcasts | Per-skill; Compliance agent is a gate, not a tool wrapper |
@@ -242,13 +242,13 @@ External future: a third-party booking agent publishes its card; WaCRM Booking a
 
 ## 8. A2A agent roster and talk paths
 
-All five are **in-app**. Each publishes a card. Orchestrator (inbox bot or “Doral Concierge”) is a thin router, not a sixth personality dump.
+All five are **in-app**. Each publishes a card. Orchestrator (inbox bot or Concierge) is a thin router, not a sixth personality dump.
 
 ```
   Lead (WhatsApp/web)
         │
         ▼
-  Concierge / auto-reply (existing WaCRM bot, constrained)
+  Concierge / auto-reply (existing AudienceGate bot, constrained)
         │  A2A SendMessage
         ├──────────────► Lead Qualifier
         │                     │
@@ -286,7 +286,7 @@ All five are **in-app**. Each publishes a card. Orchestrator (inbox bot or “Do
 ### 8.4 Booking / Receptionist — P1
 
 - **Skills:** `offer_slots`, `confirm_consult`, `cancel_consult`, `handoff_human`.
-- **Pattern:** borrow **ideas** from omnichat/whatsapp-research (Google Calendar freeBusy, confirm “1/2/3”) — **reimplement** against WaCRM contacts + a thin `appointments` table. Do not merge that repo.
+- **Pattern:** borrow **ideas** from omnichat/whatsapp-research (Google Calendar freeBusy, confirm “1/2/3”) — **reimplement** against AudienceGate contacts + a thin `appointments` table. Do not merge that repo.
 - **Copy rules:** “consult / intro / tour” only. No reason-for-visit field on WhatsApp.
 - **Talks to:** Lead Qualifier (context); human on conflict or “results / medication” intent.
 
@@ -361,7 +361,7 @@ All five are **in-app**. Each publishes a card. Orchestrator (inbox bot or “Do
 | Lead → Booked consult (generic) | Track; baseline then +20% vs pre-attribution chaos |
 | UTM coverage on new web leads | ≥ 90% |
 | Agent task success (completed vs failed) | Logged; Qualifier + Compliance used on ≥ 80% of inbound marketing threads |
-| Opt-out processing | STOP applied before next send (already a WaCRM invariant — keep tests) |
+| Opt-out processing | STOP applied before next send (already an AudienceGate invariant — keep tests) |
 | Lite deploy recovery | `docker compose up` + hosted Supabase; `/api/health` + worker `/health` green |
 
 Vanity follower counts are not success. **Consent integrity and no-PHI-on-WhatsApp** outrank volume.

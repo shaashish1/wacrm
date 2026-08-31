@@ -1,4 +1,4 @@
-# WhatsApp CRM (WaCRM)
+# AudienceGate (WhatsApp campaign CRM)
 
 Monorepo lives in [`wacrm/`](./wacrm). Production runbook: [`wacrm/docs/production.md`](./wacrm/docs/production.md).
 

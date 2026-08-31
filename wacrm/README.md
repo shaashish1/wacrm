@@ -1,4 +1,4 @@
-# wacrm — CRM for WhatsApp (Web + Cloud API)
+# AudienceGate — WhatsApp campaign CRM (Web + Cloud API)
 
 > Self-hostable CRM: shared inbox, contacts from WhatsApp groups,
 > tags, pipelines, **plain-text or Meta-template broadcasts**,

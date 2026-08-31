@@ -61,6 +61,9 @@ export default async function PublicLandingPage({ params }: Props) {
             }}
           />
         </Suspense>
+        <p className="pt-4 text-center text-xs text-muted-foreground">
+          Powered by AudienceGate
+        </p>
       </div>
     </main>
   );

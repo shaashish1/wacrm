@@ -202,7 +202,7 @@ export class BaileysProvider implements IMessagingProvider {
       version,
       logger,
       printQRInTerminal: false,
-      browser: Browsers.ubuntu('WaCRM'),
+      browser: Browsers.ubuntu('AudienceGate'),
       auth: {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, logger),

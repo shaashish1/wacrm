@@ -103,7 +103,7 @@ function LoginPageInner() {
             )}
           </div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-            wacrm
+            AudienceGate
           </p>
           <CardTitle className="font-heading text-xl font-semibold tracking-tight text-foreground">
             {inviteToken ? t('titleAccept') : t('titleWelcome')}

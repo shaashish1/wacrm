@@ -137,7 +137,7 @@ const META: Record<A2AAgentId, { name: string; description: string }> = {
   compliance: {
     name: 'Broadcast Compliance',
     description:
-      'Hard gate for Doral marketing WhatsApp. Consent, opt-out, PHI deny-list, STOP footer.',
+      'Hard gate for AudienceGate marketing WhatsApp. Consent, opt-out, PHI deny-list, STOP footer.',
   },
   qualifier: {
     name: 'Lead Qualifier',

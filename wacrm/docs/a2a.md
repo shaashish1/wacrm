@@ -1,6 +1,6 @@
 # A2A (in-app agents)
 
-Same-origin Agent2Agent adapter next to MCP. MCP stays tools/data. A2A is agent ↔ agent (tasks + cards).
+**Product:** AudienceGate. Same-origin Agent2Agent adapter next to MCP. MCP stays tools/data. A2A is agent ↔ agent (tasks + cards).
 
 ## Agents
 

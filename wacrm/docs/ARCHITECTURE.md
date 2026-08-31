@@ -1,8 +1,10 @@
-# ARCHITECTURE — WaCRM (Doral Healthcare base)
+# ARCHITECTURE — AudienceGate (WhatsApp campaign CRM)
 
 **Repo:** `shaashish1/wacrm`  
 **Constraint:** 3 Compose containers + hosted Supabase. No extra runtimes.  
 **Companions:** [BASELINE.md](./BASELINE.md), [production.md](./production.md), [LITE-DEPLOY.md](./LITE-DEPLOY.md), [mcp.md](./mcp.md), [PLAN-doral-healthcare.md](./PLAN-doral-healthcare.md), [PRD-doral-healthcare.md](./PRD-doral-healthcare.md)
+
+**Public product:** AudienceGate. **First customer / tenant #1:** Doral Healthcare and Wellness (not the product name). Repo stays `wacrm`.
 
 This file describes the **chosen** stack and the **intended** control paths. It does not implement product code. Enterprise user stories live in the [PLAN](./PLAN-doral-healthcare.md) and [PRD](./PRD-doral-healthcare.md).
 
@@ -299,7 +301,7 @@ v1 A2A is **same-origin** inside the web app (`apps/web/src/lib/a2a/`, cards at 
 
 ## 10. Adjacent repos — not in this architecture
 
-`whatsapp-research` and `omnichat` are **not** services, not Compose extras, and not merge sources. Booking/consent UX may be **reimplemented** against WaCRM contacts + a thin `appointments` table. Do not port omnichat voice, their schema, or the research apps.
+`whatsapp-research` and `omnichat` are **not** services, not Compose extras, and not merge sources. Booking/consent UX may be **reimplemented** against AudienceGate contacts + a thin `appointments` table. Do not port omnichat voice, their schema, or the research apps.
 
 ---
 
