@@ -1,6 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { isA2AAgentId, type A2AAgentId } from './cards';
+import { runAnalyticsSkill, type AnalyticsInput } from './analytics';
+import { runBookingSkill, type BookingInput } from './booking';
 import { runComplianceSkill, type ComplianceInput } from './compliance';
+import { runContentSkill, type ContentInput } from './content';
 import { runQualifierSkill, type QualifierInput } from './qualifier';
 import { hasPhi } from './phi';
 
@@ -26,6 +29,8 @@ export interface A2ATaskRow {
   created_at: string;
   updated_at: string;
 }
+
+const TEXT_KEYS = ['text', 'copy', 'brief', 'headline', 'body', 'draft', 'subject'] as const;
 
 export async function runA2ATask(
   db: SupabaseClient,
@@ -136,21 +141,28 @@ async function executeAgent(
   skill: string,
   input: Record<string, unknown>,
 ): Promise<unknown> {
-  if (agentId === 'compliance') {
-    return runComplianceSkill(db, accountId, skill, input as ComplianceInput);
+  switch (agentId) {
+    case 'compliance':
+      return runComplianceSkill(db, accountId, skill, input as ComplianceInput);
+    case 'qualifier':
+      return runQualifierSkill(db, accountId, skill, input as QualifierInput);
+    case 'content':
+      return runContentSkill(db, accountId, skill, input as ContentInput);
+    case 'booking':
+      return runBookingSkill(db, accountId, skill, input as BookingInput);
+    case 'analytics':
+      return runAnalyticsSkill(db, accountId, skill, input as AnalyticsInput);
   }
-  return runQualifierSkill(db, accountId, skill, input as QualifierInput);
 }
 
 function sanitizeInput(input: Record<string, unknown>): Record<string, unknown> {
   const next: Record<string, unknown> = { ...input };
-  if (typeof next.text === 'string' && hasPhi(next.text)) {
-    next.text = '[redacted: possible clinical content — escalate to phone/portal]';
-    next.phi_redacted = true;
-  }
-  if (typeof next.copy === 'string' && hasPhi(next.copy)) {
-    next.copy_phi = true;
-    next.copy = '[redacted]';
+  for (const key of TEXT_KEYS) {
+    if (typeof next[key] === 'string' && hasPhi(next[key] as string)) {
+      next[key] = '[redacted: possible clinical content — escalate to phone/portal]';
+      next.phi_redacted = true;
+      if (key === 'copy') next.copy_phi = true;
+    }
   }
   return next;
 }

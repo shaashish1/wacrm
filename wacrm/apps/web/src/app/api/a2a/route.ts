@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { requireRole, toErrorResponse } from '@/lib/auth/account';
+import { toErrorResponse } from '@/lib/auth/account';
+import { ApiError, toApiErrorResponse } from '@/lib/api/v1/respond';
+import { requireA2AAuth } from '@/lib/a2a/auth';
 import { cancelA2ATask, getA2ATask, runA2ATask } from '@/lib/a2a/runner';
 import { getAgentCard, isA2AAgentId, listAgentIds } from '@/lib/a2a/cards';
 
@@ -32,7 +34,7 @@ function rpcError(
  */
 export async function POST(request: Request) {
   try {
-    const ctx = await requireRole('agent');
+    const ctx = await requireA2AAuth(request, 'agent');
     const body = (await request.json().catch(() => ({}))) as JsonRpcBody;
     const method = body.method ?? '';
     const params = body.params ?? {};
@@ -65,7 +67,11 @@ export async function POST(request: Request) {
     if (method === 'message/send' || method === 'SendMessage') {
       const agentId = String(params.agentId ?? params.agent_id ?? '');
       if (!isA2AAgentId(agentId)) {
-        return rpcError(id, -32602, 'agentId must be compliance or qualifier');
+        return rpcError(
+          id,
+          -32602,
+          'agentId must be compliance, qualifier, content, booking, or analytics',
+        );
       }
       const skill = typeof params.skill === 'string' ? params.skill : undefined;
       const message = (params.message as Record<string, unknown> | undefined) ?? {};
@@ -86,13 +92,14 @@ export async function POST(request: Request) {
 
     return rpcError(id, -32601, `Method not found: ${method}`);
   } catch (err) {
+    if (err instanceof ApiError) return toApiErrorResponse(err);
     return toErrorResponse(err);
   }
 }
 
 export async function GET(request: Request) {
   try {
-    await requireRole('viewer');
+    await requireA2AAuth(request, 'viewer');
     const origin = new URL(request.url).origin;
     return NextResponse.json({
       agents: listAgentIds().map((agentId) => ({
@@ -101,6 +108,7 @@ export async function GET(request: Request) {
       })),
     });
   } catch (err) {
+    if (err instanceof ApiError) return toApiErrorResponse(err);
     return toErrorResponse(err);
   }
 }

@@ -207,7 +207,7 @@ flowchart LR
   Web -->|AES-256-GCM| Enc[ai_configs.api_key<br/>embeddings_api_key]
   Enc -->|ENCRYPTION_KEY 64 hex| Disk[(Postgres at rest)]
   Play[Playground / auto-reply] -->|decrypt in process| Vendor
-  A2A[Future A2A agents] -.->|same account keys| Vendor
+  A2A[A2A agents] -->|same account keys| Vendor
 ```
 
 - Keys are **per-account**, never returned to the client (`has_key` flag only).
@@ -247,10 +247,10 @@ Ashish (admin) opens Settings → AI, pastes an OpenAI or Anthropic key, picks a
 
 Keep **both**. They are different layers.
 
-| | MCP (exists) | A2A (Phase 4, planned) |
+| | MCP (exists) | A2A (same-origin in web) |
 | --- | --- | --- |
 | Relationship | **Agent → tools / data** | **Agent → agent** |
-| Today | `mcp-server/` → `wacrm-mcp` wrapping `/api/v1` | None |
+| Today | `mcp-server/` → `wacrm-mcp` wrapping `/api/v1` | Cards + JSON-RPC at `/api/a2a` |
 | State | Stateless tool calls | Stateful **tasks** (`submitted` → `working` → done / failed / `input-required`) |
 | Contract | Tool schema | Agent Card + skills |
 | Writes | Opt-in `WACRM_ENABLE_WRITES` / broadcasts | Per-skill; Broadcast Compliance is a **gate**, not a tool wrapper |
@@ -275,7 +275,7 @@ v1 A2A is **same-origin** inside the web app (`apps/web/src/lib/a2a/`, cards at 
 | Full `/api/v1` (groups, campaigns, consents, pipelines) | **Planned** | Phase 2 — today: me, messages, contacts, conversations, broadcasts, webhooks |
 | In-process scheduler (no GitHub/cron) | **Planned** | Cron remains an external pinger |
 | Configurable / higher-quality delay distribution | Built | Broadcast + account min/max seconds; RateGovernor uses payload/account |
-| A2A agents + cards + task store | Built (P0 pair) | Compliance + Qualifier; `docs/a2a.md` |
+| A2A agents + cards + task store | Built (five agents) | Compliance, Qualifier, Content, Booking, Analytics; `docs/a2a.md` |
 | Group admin (add/remove/promote) | **Not built** | Phase 2, Baileys-only |
 | Unified audit log / SIEM | **Gap** | Row `user_id` only |
 | HA / multi-worker session lock | **Gap** | Single worker assumed |
