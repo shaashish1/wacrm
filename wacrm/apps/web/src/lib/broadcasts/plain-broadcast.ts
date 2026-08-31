@@ -10,6 +10,8 @@ import { buildPlainSendJobs, type PlainMediaKind } from '@/lib/broadcasts/plain-
 import { sanitizePhoneForMeta, isValidE164 } from '@/lib/whatsapp/phone-utils';
 import type { Contact } from '@/types';
 import { filterMarketingEligible, NO_CONSENT_MESSAGE } from '@/lib/consent';
+import { normalizeJitterSeconds } from '@/lib/broadcasts/jitter';
+import { reviewCopy } from '@/lib/a2a/compliance';
 
 const MAX_RECIPIENTS = 1000;
 
@@ -244,6 +246,25 @@ export async function createAndEnqueuePlainBroadcast(
     throw new BroadcastError('bad_request', NO_CONSENT_MESSAGE, 400);
   }
 
+  const copyGate = reviewCopy(body);
+  if (!copyGate.allow) {
+    throw new BroadcastError(
+      'bad_request',
+      `Compliance blocked send: ${copyGate.violations.join(', ')}`,
+      400,
+    );
+  }
+
+  const { data: accountRow } = await db
+    .from('accounts')
+    .select('broadcast_jitter_min_sec, broadcast_jitter_max_sec')
+    .eq('id', accountId)
+    .maybeSingle();
+  const jitter = normalizeJitterSeconds(
+    accountRow?.broadcast_jitter_min_sec,
+    accountRow?.broadcast_jitter_max_sec,
+  );
+
   const { data: broadcast, error: bErr } = await db
     .from('broadcasts')
     .insert({
@@ -258,6 +279,8 @@ export async function createAndEnqueuePlainBroadcast(
         mediaKind,
       },
       audience_filter: params.audience ?? { type: 'recipients' },
+      jitter_min_sec: jitter.minSec,
+      jitter_max_sec: jitter.maxSec,
       status: 'sending',
       total_recipients: contactRows.length,
     })
@@ -290,6 +313,8 @@ export async function createAndEnqueuePlainBroadcast(
     body,
     mediaUrl,
     mediaKind,
+    jitterMinMs: jitter.minSec * 1000,
+    jitterMaxMs: jitter.maxSec * 1000,
     recipients: recipientRows.map((row) => {
       const c = byContact.get(row.contact_id as string);
       return {

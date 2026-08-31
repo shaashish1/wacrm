@@ -17,6 +17,7 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { countMarketingEligibility } from '@/lib/consent';
 
 type AudienceType = 'all' | 'tags' | 'custom_field' | 'csv' | 'group';
 type CustomFieldOperator = 'is' | 'is_not' | 'contains';
@@ -101,6 +102,8 @@ export function Step2SelectAudience({
   const [loadingTags, setLoadingTags] = useState(false);
   const [loadingFields, setLoadingFields] = useState(false);
   const [estimatedCount, setEstimatedCount] = useState<number | null>(null);
+  const [eligibleCount, setEligibleCount] = useState<number | null>(null);
+  const [ineligibleCount, setIneligibleCount] = useState<number | null>(null);
   const [loadingCount, setLoadingCount] = useState(false);
 
   // Tags are used both by the primary "Filter by Tags" audience type
@@ -231,18 +234,29 @@ export function Step2SelectAudience({
         excludeSet = new Set((excludeRows ?? []).map((r) => r.contact_id));
       }
 
+      let previewIds: string[] = [];
       if (baseIds) {
-        const effective = [...baseIds].filter(
-          (id) => !excludeSet?.has(id),
-        );
-        setEstimatedCount(effective.length);
+        previewIds = [...baseIds].filter((id) => !excludeSet?.has(id));
+        setEstimatedCount(previewIds.length);
       } else {
-        // "All" — fetch the total, then subtract exclude set if any.
-        const { count } = await supabase
-          .from('contacts')
-          .select('*', { count: 'exact', head: true });
-        const total = count ?? 0;
-        setEstimatedCount(excludeSet ? Math.max(0, total - excludeSet.size) : total);
+        const { data: allRows } = await supabase.from('contacts').select('id');
+        previewIds = (allRows ?? [])
+          .map((r) => r.id as string)
+          .filter((id) => !excludeSet?.has(id));
+        setEstimatedCount(previewIds.length);
+      }
+      if (accountId && previewIds.length > 0) {
+        const preview = await countMarketingEligibility(
+          supabase,
+          accountId,
+          previewIds,
+          'whatsapp',
+        );
+        setEligibleCount(preview.eligible);
+        setIneligibleCount(preview.ineligible);
+      } else {
+        setEligibleCount(0);
+        setIneligibleCount(previewIds.length);
       }
     } finally {
       setLoadingCount(false);
@@ -254,6 +268,7 @@ export function Step2SelectAudience({
     audience.csvContacts,
     audience.groupIds,
     audience.excludeTagIds,
+    accountId,
   ]);
 
   useEffect(() => {
@@ -528,12 +543,19 @@ export function Step2SelectAudience({
             <span className="text-xs text-muted-foreground">Calculating…</span>
           </div>
         ) : estimatedCount !== null ? (
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            <span className="text-sm text-foreground">
-              {estimatedCount.toLocaleString()}
-            </span>
-            <span className="text-xs text-muted-foreground">estimated recipients</span>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              <span className="text-sm text-foreground">
+                {estimatedCount.toLocaleString()}
+              </span>
+              <span className="text-xs text-muted-foreground">estimated recipients</span>
+            </div>
+            {eligibleCount !== null && ineligibleCount !== null && (
+              <p className="text-xs text-muted-foreground">
+                {eligibleCount.toLocaleString()} eligible · {ineligibleCount.toLocaleString()} without consent
+              </p>
+            )}
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">

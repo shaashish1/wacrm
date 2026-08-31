@@ -113,6 +113,7 @@ export default function BroadcastsPage() {
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cronHint, setCronHint] = useState<string | null>(null);
   const broadcastsRef = useRef<Broadcast[]>([]);
   broadcastsRef.current = broadcasts;
 
@@ -129,6 +130,33 @@ export default function BroadcastsPage() {
       if (fetchError) throw fetchError;
       setBroadcasts(data ?? []);
       setError(null);
+      const hasScheduled = (data ?? []).some((b) => b.status === 'scheduled');
+      if (hasScheduled) {
+        try {
+          const health = await fetch('/api/health');
+          const json = (await health.json()) as {
+            last_cron_at?: string | null;
+            cron_stale?: boolean;
+          };
+          if (json.cron_stale) {
+            setCronHint(t('cronWaiting'));
+          } else if (json.last_cron_at) {
+            setCronHint(
+              t('cronHeartbeat', {
+                when: formatDistanceToNow(new Date(json.last_cron_at), {
+                  addSuffix: true,
+                }),
+              }),
+            );
+          } else {
+            setCronHint(t('cronUnknown'));
+          }
+        } catch {
+          setCronHint(t('cronUnknown'));
+        }
+      } else {
+        setCronHint(null);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : t('errorLoad');
       if (broadcastsRef.current.length === 0) {
@@ -198,6 +226,9 @@ export default function BroadcastsPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
+          {cronHint && (
+            <p className="mt-2 text-xs text-muted-foreground">{cronHint}</p>
+          )}
         </div>
         <NewBroadcastLink
           canCreate={canCreate}

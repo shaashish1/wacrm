@@ -80,13 +80,13 @@ flowchart TB
     Broadcasts[(broadcasts + recipients<br/>scheduled_at)]
     AiConfigs[(ai_configs<br/>api_key AES-256-GCM)]
     Sessions[(sessions<br/>QR / warming)]
-    A2ATasks[("a2a_tasks — planned")]
+    A2ATasks[("a2a_tasks")]
   end
 
   subgraph gates [Send gates]
     ConsentGate[Consent + opted_out filter]
     RateGov[RateGovernor<br/>250/day · warming 15–60s<br/>broadcast jitter 1–3s]
-    Compliance["Broadcast Compliance A2A — planned"]
+    Compliance["Broadcast Compliance A2A"]
   end
 
   subgraph a2a [A2A mesh — Phase 4, same-origin]
@@ -267,15 +267,15 @@ v1 A2A is **same-origin** inside the web app (`apps/web/src/lib/a2a/`, cards at 
 | Lite deploy compose | Built | `docker-compose.yml`, [LITE-DEPLOY.md](./LITE-DEPLOY.md) |
 | QR pair + session poll | Built | Settings + `sessions` + worker |
 | Group sync + participant extract | Built | `baileys-provider.syncGroups` |
-| Auto contact upsert + group tag | Built | same; no email; no `source_group_id` column |
+| Auto contact upsert + group tag | Built | same; `source_group_id` + `contact_wa_groups` (058); email only if WA provides it |
 | Consent ledger + gated send | Built | `consents`, `lib/consent.ts` |
 | Broadcast select + `scheduled_at` | Built | UI + `/api/broadcasts/cron` |
 | RateGovernor jitter / daily cap | Built | `apps/worker/src/rate-governor.ts` |
 | BYOK LLM keys encrypted | Built | `/api/ai/config`, `ai_configs` |
 | Full `/api/v1` (groups, campaigns, consents, pipelines) | **Planned** | Phase 2 — today: me, messages, contacts, conversations, broadcasts, webhooks |
 | In-process scheduler (no GitHub/cron) | **Planned** | Cron remains an external pinger |
-| Configurable / higher-quality delay distribution | **Gap** | Fixed 1–3s after warming |
-| A2A agents + cards + task store | **Not built** | Phase 4 |
+| Configurable / higher-quality delay distribution | Built | Broadcast + account min/max seconds; RateGovernor uses payload/account |
+| A2A agents + cards + task store | Built (P0 pair) | Compliance + Qualifier; `docs/a2a.md` |
 | Group admin (add/remove/promote) | **Not built** | Phase 2, Baileys-only |
 | Unified audit log / SIEM | **Gap** | Row `user_id` only |
 | HA / multi-worker session lock | **Gap** | Single worker assumed |

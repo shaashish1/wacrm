@@ -98,6 +98,7 @@ type ParticipantSortKey =
 
 const GROUP_COLS = [
   'subject',
+  'groupId',
   'size',
   'phonesResolved',
   'type',
@@ -120,6 +121,7 @@ type ParticipantCol = (typeof PARTICIPANT_COLS)[number];
 
 const GROUP_COL_DEFAULTS: Set<GroupCol> = new Set([
   'subject',
+  'groupId',
   'size',
   'phonesResolved',
   'type',
@@ -574,6 +576,7 @@ export default function WaGroupsPage() {
 
   const groupColLabels: Record<GroupCol, string> = {
     subject: t('colGroupName'),
+    groupId: t('colGroupId'),
     size: t('colMembers'),
     phonesResolved: t('colPhonesResolved'),
     type: t('colType'),
@@ -613,6 +616,9 @@ export default function WaGroupsPage() {
               <h1 className="text-2xl font-bold text-foreground">
                 {selectedGroup.subject || selectedGroup.jid}
               </h1>
+              <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                {t('colGroupId')}: {selectedGroup.id}
+              </p>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span>
                   {participants.length} {t('participantsLabel')}
@@ -625,6 +631,8 @@ export default function WaGroupsPage() {
                 <span className="text-blue-500">
                   {statsInCrm} {t('inCrmLabel')}
                 </span>
+                <span>·</span>
+                <span>{t('emailHint')}</span>
               </div>
             </div>
           </div>
@@ -1146,6 +1154,11 @@ export default function WaGroupsPage() {
                   className="text-muted-foreground"
                 />
               )}
+              {groupCols.has('groupId') && (
+                <TableHead className="hidden font-mono text-muted-foreground lg:table-cell">
+                  {t('colGroupId')}
+                </TableHead>
+              )}
               {groupCols.has('size') && (
                 <SortableHeader
                   label={t('colMembers')}
@@ -1266,6 +1279,11 @@ export default function WaGroupsPage() {
                           {t('unnamed')}
                         </span>
                       )}
+                    </TableCell>
+                  )}
+                  {groupCols.has('groupId') && (
+                    <TableCell className="hidden max-w-[140px] truncate font-mono text-xs text-muted-foreground lg:table-cell">
+                      {group.id}
                     </TableCell>
                   )}
                   {groupCols.has('size') && (

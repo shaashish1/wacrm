@@ -10,6 +10,8 @@ import {
   type VariableMapping,
 } from '@/lib/broadcasts/personalize';
 import { filterMarketingEligible, NO_CONSENT_MESSAGE } from '@/lib/consent';
+import { normalizeJitterSeconds } from '@/lib/broadcasts/jitter';
+import { reviewCopy } from '@/lib/a2a/compliance';
 
 export type { VariableMapping };
 export { resolveVariables, substitutePlainText };
@@ -56,6 +58,9 @@ interface BroadcastPayload {
   scheduledAt?: string | null;
   /** Daily/weekly clone after the scheduled send fires. */
   recurrence?: 'daily' | 'weekly' | null;
+  /** Baileys delay window in seconds. Cloud API ignores this. */
+  jitterMinSec?: number | null;
+  jitterMaxSec?: number | null;
 }
 
 export type ProviderType = 'wwebjs' | 'cloud_api';
@@ -356,6 +361,10 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
     }
 
     setProgress(5);
+    const copyGate = reviewCopy(body);
+    if (!copyGate.allow) {
+      throw new Error(`Compliance blocked send: ${copyGate.violations.join(', ')}`);
+    }
     const contacts = await resolveAudience(payload.audience);
     if (contacts.length === 0) {
       throw new Error(NO_CONSENT_MESSAGE);
@@ -375,6 +384,15 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
       customField: payload.audience.customField,
       excludeTagIds: payload.audience.excludeTagIds,
     };
+    const { data: accountRow } = await supabase
+      .from('accounts')
+      .select('broadcast_jitter_min_sec, broadcast_jitter_max_sec')
+      .eq('id', accountId)
+      .maybeSingle();
+    const jitter = normalizeJitterSeconds(
+      payload.jitterMinSec ?? accountRow?.broadcast_jitter_min_sec,
+      payload.jitterMaxSec ?? accountRow?.broadcast_jitter_max_sec,
+    );
     const { data: broadcast, error: broadcastError } = await supabase
       .from('broadcasts')
       .insert({
@@ -387,6 +405,8 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
         audience_filter: audienceFilter,
         scheduled_at: isScheduled ? scheduledAt : null,
         recurrence: isScheduled ? payload.recurrence ?? null : null,
+        jitter_min_sec: jitter.minSec,
+        jitter_max_sec: jitter.maxSec,
         status: isScheduled ? 'scheduled' : 'sending',
         total_recipients: contacts.length,
         sent_count: 0,
@@ -479,6 +499,8 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
       body: JSON.stringify({
         mode: 'plain',
         recipients: apiRecipients,
+        jitterMinSec: jitter.minSec,
+        jitterMaxSec: jitter.maxSec,
       }),
     });
     const data = await res.json();

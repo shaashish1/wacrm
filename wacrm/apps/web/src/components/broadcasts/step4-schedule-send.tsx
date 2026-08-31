@@ -17,6 +17,13 @@ import {
 import { ArrowLeft, Send, Loader2, Users, Save, Clock } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { BroadcastRecurrence } from '@/lib/broadcasts/recurrence';
+import { countMarketingEligibility } from '@/lib/consent';
+import {
+  DEFAULT_JITTER_MAX_SEC,
+  DEFAULT_JITTER_MIN_SEC,
+  normalizeJitterSeconds,
+} from '@/lib/broadcasts/jitter';
+import { useAuth } from '@/hooks/use-auth';
 
 interface AudienceConfig {
   type: string;
@@ -33,11 +40,16 @@ interface Step4Props {
   isPlainText?: boolean;
   plainTextPreview?: string;
   audience: AudienceConfig;
-  onSend: (scheduledAt?: string | null, recurrence?: BroadcastRecurrence | null) => void;
+  onSend: (
+    scheduledAt?: string | null,
+    recurrence?: BroadcastRecurrence | null,
+    jitter?: { minSec: number; maxSec: number } | null,
+  ) => void;
   onSaveDraft?: () => void;
   onBack: () => void;
   isProcessing: boolean;
   progress: number;
+  showJitter?: boolean;
 }
 
 export function Step4ScheduleSend({
@@ -52,14 +64,39 @@ export function Step4ScheduleSend({
   onBack,
   isProcessing,
   progress,
+  showJitter = false,
 }: Step4Props) {
   const t = useTranslations('Broadcasts.wizard');
+  const { accountId } = useAuth();
   const [showConfirm, setShowConfirm] = useState(false);
   const [estimatedReach, setEstimatedReach] = useState<number>(0);
+  const [eligibleCount, setEligibleCount] = useState<number | null>(null);
+  const [ineligibleCount, setIneligibleCount] = useState<number | null>(null);
   const [loadingReach, setLoadingReach] = useState(true);
   const [sendMode, setSendMode] = useState<'now' | 'schedule'>('now');
   const [scheduledLocal, setScheduledLocal] = useState('');
   const [recurrence, setRecurrence] = useState<BroadcastRecurrence | ''>('');
+  const [jitterMin, setJitterMin] = useState(String(DEFAULT_JITTER_MIN_SEC));
+  const [jitterMax, setJitterMax] = useState(String(DEFAULT_JITTER_MAX_SEC));
+
+  useEffect(() => {
+    if (!accountId || !showJitter) return;
+    const supabase = createClient();
+    void supabase
+      .from('accounts')
+      .select('broadcast_jitter_min_sec, broadcast_jitter_max_sec')
+      .eq('id', accountId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        const j = normalizeJitterSeconds(
+          data.broadcast_jitter_min_sec,
+          data.broadcast_jitter_max_sec,
+        );
+        setJitterMin(String(j.minSec));
+        setJitterMax(String(j.maxSec));
+      });
+  }, [accountId, showJitter]);
 
   useEffect(() => {
     async function calculateReach() {
@@ -67,32 +104,41 @@ export function Step4ScheduleSend({
       try {
         const supabase = createClient();
 
+        let ids: string[] = [];
         if (audience.type === 'all') {
-          const { count } = await supabase
-            .from('contacts')
-            .select('*', { count: 'exact', head: true });
-          setEstimatedReach(count ?? 0);
+          const { data } = await supabase.from('contacts').select('id');
+          ids = (data ?? []).map((c) => c.id);
         } else if (audience.type === 'tags' && audience.tagIds && audience.tagIds.length > 0) {
           const { data: contactTags } = await supabase
             .from('contact_tags')
             .select('contact_id')
             .in('tag_id', audience.tagIds);
-
-          const uniqueIds = new Set((contactTags ?? []).map((ct) => ct.contact_id));
-          setEstimatedReach(uniqueIds.size);
+          ids = [...new Set((contactTags ?? []).map((ct) => ct.contact_id))];
         } else if (audience.type === 'csv' && audience.csvContacts) {
           setEstimatedReach(audience.csvContacts.length);
+          setEligibleCount(null);
+          setIneligibleCount(null);
+          return;
         } else if (audience.type === 'group' && audience.groupIds && audience.groupIds.length > 0) {
-          let total = 0;
+          const idSet = new Set<string>();
           for (const groupId of audience.groupIds) {
             const { data } = await supabase.rpc('resolve_group_members', {
               p_group_id: groupId,
             });
-            total += (data ?? []).length;
+            for (const row of data ?? []) {
+              if (row.contact_id) idSet.add(row.contact_id);
+            }
           }
-          setEstimatedReach(total);
+          ids = [...idSet];
+        }
+        setEstimatedReach(ids.length);
+        if (accountId && ids.length > 0) {
+          const preview = await countMarketingEligibility(supabase, accountId, ids, 'whatsapp');
+          setEligibleCount(preview.eligible);
+          setIneligibleCount(preview.ineligible);
         } else {
-          setEstimatedReach(0);
+          setEligibleCount(0);
+          setIneligibleCount(ids.length);
         }
       } finally {
         setLoadingReach(false);
@@ -100,7 +146,7 @@ export function Step4ScheduleSend({
     }
 
     calculateReach();
-  }, [audience]);
+  }, [audience, accountId]);
 
   const audienceLabel =
     audience.type === 'all'
@@ -163,6 +209,14 @@ export function Step4ScheduleSend({
                 </>
               )}
             </div>
+            {!loadingReach && eligibleCount !== null && ineligibleCount !== null && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t('scheduleSend.eligibleVsNot', {
+                  eligible: eligibleCount.toLocaleString(),
+                  ineligible: ineligibleCount.toLocaleString(),
+                })}
+              </p>
+            )}
           </div>
           {!isPlainText && (
             <div>
@@ -232,6 +286,41 @@ export function Step4ScheduleSend({
           </div>
         )}
       </div>
+
+      {showJitter && (
+        <div className="space-y-3 rounded-xl border border-border bg-card/50 p-4">
+          <p className="text-sm font-medium text-foreground">{t('scheduleSend.jitterTitle')}</p>
+          <p className="text-xs text-muted-foreground">{t('scheduleSend.jitterDisclaimer')}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-xs text-muted-foreground">
+                {t('scheduleSend.jitterMin')}
+              </label>
+              <Input
+                type="number"
+                min={0}
+                max={300}
+                value={jitterMin}
+                onChange={(e) => setJitterMin(e.target.value)}
+                className="border-border bg-muted text-foreground"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs text-muted-foreground">
+                {t('scheduleSend.jitterMax')}
+              </label>
+              <Input
+                type="number"
+                min={0}
+                max={300}
+                value={jitterMax}
+                onChange={(e) => setJitterMax(e.target.value)}
+                className="border-border bg-muted text-foreground"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Processing overlay */}
       {isProcessing && (
@@ -329,6 +418,9 @@ export function Step4ScheduleSend({
                   onSend(
                     iso,
                     sendMode === 'schedule' && recurrence ? recurrence : null,
+                    showJitter
+                      ? normalizeJitterSeconds(Number(jitterMin), Number(jitterMax))
+                      : null,
                   );
                 }}
                 className="bg-primary text-primary-foreground hover:bg-primary/90"

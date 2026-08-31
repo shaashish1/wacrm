@@ -22,6 +22,8 @@ export function buildPlainSendJobs(args: {
   mediaUrl?: string;
   mediaKind?: PlainMediaKind;
   recipients: PlainRecipientRow[];
+  jitterMinMs?: number;
+  jitterMaxMs?: number;
 }): { jobs: SendQueueJobInput[]; queuedIds: string[] } {
   const mediaUrl = args.mediaUrl?.trim() ?? '';
   const mediaKind = args.mediaKind || 'image';
@@ -41,6 +43,9 @@ export function buildPlainSendJobs(args: {
       broadcastRecipientId: r.id,
       broadcastId: args.broadcastId,
       contactId: r.contact_id,
+      ...(typeof args.jitterMinMs === 'number' && typeof args.jitterMaxMs === 'number'
+        ? { jitterMinMs: args.jitterMinMs, jitterMaxMs: args.jitterMaxMs }
+        : {}),
     };
     jobs.push({
       accountId: args.accountId,

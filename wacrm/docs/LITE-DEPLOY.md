@@ -36,7 +36,7 @@ Local `next dev` also reads `apps/web/.env.local` (copy from `apps/web/.env.loca
 
 ## 2. Hosted Supabase migrations
 
-Apply **001–current** in order on the Doral project (include GRANT migrations **031, 051–053**). Do **not** `supabase db reset` on a database you care about.
+Apply **001–current** in order on the Doral project (include GRANT migrations **031, 051–053**, **057** consents/landings, and **058–060** group lineage / jitter / A2A). Do **not** `supabase db reset` on a database you care about.
 
 ```powershell
 npx supabase db push

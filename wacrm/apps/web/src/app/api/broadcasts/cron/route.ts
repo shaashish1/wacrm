@@ -19,6 +19,9 @@ import { isMessageTemplate } from '@/lib/whatsapp/template-row-guard';
 import { sanitizePhoneForMeta, isValidE164 } from '@/lib/whatsapp/phone-utils';
 import type { Contact, MessageTemplate } from '@/types';
 import { loadMarketingEligibleIds } from '@/lib/consent';
+import { BROADCASTS_CRON_KEY, touchCronHeartbeat } from '@/lib/ops/heartbeat';
+import { jitterToMs, normalizeJitterSeconds } from '@/lib/broadcasts/jitter';
+import { preflightAudience } from '@/lib/a2a/compliance';
 
 /**
  * Drain due scheduled broadcasts onto send_queue.
@@ -67,7 +70,8 @@ async function handle(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
   if (!due || due.length === 0) {
-    return NextResponse.json({ processed: 0 });
+    await touchCronHeartbeat(admin, BROADCASTS_CRON_KEY, 0, { due: 0 });
+    return NextResponse.json({ processed: 0, last_cron_at: new Date().toISOString() });
   }
 
   let processed = 0;
@@ -78,7 +82,7 @@ async function handle(request: Request) {
       .eq('id', broadcast.id)
       .eq('status', 'scheduled')
       .select(
-        'id, name, user_id, account_id, template_name, template_language, template_variables, audience_filter, recurrence, scheduled_at',
+        'id, name, user_id, account_id, template_name, template_language, template_variables, audience_filter, recurrence, scheduled_at, jitter_min_sec, jitter_max_sec',
       )
       .maybeSingle();
     if (!claimed) continue;
@@ -105,7 +109,13 @@ async function handle(request: Request) {
     }
   }
 
-  return NextResponse.json({ processed });
+  await touchCronHeartbeat(admin, BROADCASTS_CRON_KEY, processed, {
+    due: due.length,
+  });
+  return NextResponse.json({
+    processed,
+    last_cron_at: new Date().toISOString(),
+  });
 }
 
 async function cloneNextOccurrence(broadcast: {
@@ -119,6 +129,8 @@ async function cloneNextOccurrence(broadcast: {
   audience_filter: Record<string, unknown> | null;
   recurrence: string | null;
   scheduled_at: string | null;
+  jitter_min_sec?: number | null;
+  jitter_max_sec?: number | null;
 }) {
   if (!isBroadcastRecurrence(broadcast.recurrence)) return;
   const admin = supabaseAdmin();
@@ -150,6 +162,8 @@ async function cloneNextOccurrence(broadcast: {
       audience_filter: broadcast.audience_filter,
       scheduled_at: nextAt,
       recurrence: broadcast.recurrence,
+      jitter_min_sec: broadcast.jitter_min_sec ?? null,
+      jitter_max_sec: broadcast.jitter_max_sec ?? null,
       status: 'scheduled',
       total_recipients: contactIds.length,
       sent_count: 0,
@@ -188,6 +202,8 @@ async function enqueueClaimedBroadcast(broadcast: {
   template_language: string;
   template_variables: Record<string, unknown> | null;
   audience_filter: Record<string, unknown> | null;
+  jitter_min_sec?: number | null;
+  jitter_max_sec?: number | null;
 }) {
   const admin = supabaseAdmin();
   const { data: recipients, error } = await admin
@@ -226,10 +242,42 @@ async function enqueueClaimedBroadcast(broadcast: {
     return Boolean(cid && eligible.has(cid));
   });
 
+  const vars = (broadcast.template_variables ?? {}) as Record<string, unknown>;
+  const copy =
+    broadcast.template_name === 'plain_text'
+      ? String(vars.body ?? '')
+      : String(broadcast.template_name ?? '');
+  const gate = await preflightAudience(
+    admin,
+    broadcast.account_id,
+    allowedRecipients
+      .map((r) => r.contact?.id as string | undefined)
+      .filter((id): id is string => Boolean(id)),
+    copy,
+  );
+  if (!gate.allow && gate.violations.some((v) => v !== 'missing_stop_footer')) {
+    throw new Error(`Compliance blocked scheduled send: ${gate.violations.join(', ')}`);
+  }
+  if (allowedRecipients.length === 0) {
+    throw new Error(
+      'No recipients have marketing consent at fire time (or all opted out).',
+    );
+  }
+
+  const { data: accountRow } = await admin
+    .from('accounts')
+    .select('broadcast_jitter_min_sec, broadcast_jitter_max_sec, provider_type')
+    .eq('id', broadcast.account_id)
+    .maybeSingle();
+  const jitter = normalizeJitterSeconds(
+    broadcast.jitter_min_sec ?? accountRow?.broadcast_jitter_min_sec,
+    broadcast.jitter_max_sec ?? accountRow?.broadcast_jitter_max_sec,
+  );
+  const jitterMs = jitterToMs(jitter);
+
   const isPlain = broadcast.template_name === 'plain_text';
   const jobs: SendQueueJobInput[] = [];
   const queuedIds: string[] = [];
-  const vars = (broadcast.template_variables ?? {}) as Record<string, unknown>;
 
   if (isPlain) {
     const built = buildPlainSendJobs({
@@ -238,6 +286,8 @@ async function enqueueClaimedBroadcast(broadcast: {
       body: String(vars.body ?? ''),
       mediaUrl: typeof vars.mediaUrl === 'string' ? vars.mediaUrl : undefined,
       mediaKind: (vars.mediaKind as PlainMediaKind) || 'image',
+      jitterMinMs: jitterMs.jitterMinMs,
+      jitterMaxMs: jitterMs.jitterMaxMs,
       recipients: allowedRecipients.map((r) => ({
         id: r.id as string,
         contact_id: r.contact_id as string | null,

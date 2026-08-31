@@ -3,6 +3,7 @@ import type { IMessagingProvider } from '@wacrm/shared';
 import { RateGovernor } from './rate-governor';
 import { sendCloudApiTemplate } from './cloud-api-send';
 import { contactMayReceiveMarketing } from './consent';
+import { resolveBroadcastJitter } from './broadcast-jitter';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -120,10 +121,11 @@ export class SendQueueDrainer {
       const isBroadcast = Boolean(options.broadcastRecipientId);
       if (['sendText', 'sendMedia', 'sendTemplate'].includes(row.action)) {
         try {
-          await this.rateGovernor.enforceLimits(
-            row.account_id,
-            isBroadcast ? { jitterMinMs: 1000, jitterMaxMs: 3000 } : undefined,
-          );
+          const jitter =
+            isBroadcast && row.provider_type === 'wwebjs'
+              ? await resolveBroadcastJitter(row.account_id, payload)
+              : undefined;
+          await this.rateGovernor.enforceLimits(row.account_id, jitter);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           if (message.includes('Daily message limit')) {

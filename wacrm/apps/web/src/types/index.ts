@@ -59,6 +59,8 @@ export interface Account {
   owner_user_id: string;
   created_at: string;
   updated_at: string;
+  broadcast_jitter_min_sec?: number;
+  broadcast_jitter_max_sec?: number;
 }
 
 /**
@@ -118,6 +120,8 @@ export interface Contact {
   landing_id?: string | null;
   first_touch_at?: string | null;
   last_touch_at?: string | null;
+  /** First WA group that imported this contact (migration 058). */
+  source_group_id?: string | null;
   created_at: string;
   updated_at: string;
   /** Hydrated by queries that embed `contact_tags(tags(*))` (e.g. the
@@ -411,6 +415,8 @@ export interface Broadcast {
   template_variables?: Record<string, unknown>;
   audience_filter?: Record<string, unknown>;
   scheduled_at?: string;
+  jitter_min_sec?: number | null;
+  jitter_max_sec?: number | null;
   recurrence?: 'daily' | 'weekly' | null;
   status: BroadcastStatus;
   total_recipients: number;

@@ -1,6 +1,7 @@
 import { IMessagingProvider } from '@wacrm/shared';
 import { createClient } from '@supabase/supabase-js';
 import { RateGovernor } from './rate-governor';
+import { resolveBroadcastJitter } from './broadcast-jitter';
 import { UnrecoverableError, Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -96,15 +97,15 @@ export class QueueProcessor {
 
     let result;
 
-    // Enforce Rate Governor before sending messages.
-    // Broadcast jobs get 1–3s jitter so fan-out is not bursty.
+    // Broadcast jobs use persisted min/max jitter (account or payload).
+    // Cloud API path does not inherit Baileys jitter.
     if (['sendText', 'sendMedia', 'sendTemplate'].includes(action)) {
       const isBroadcast = Boolean(payload?.options?.broadcastRecipientId);
       try {
-        await this.rateGovernor.enforceLimits(
-          accountId,
-          isBroadcast ? { jitterMinMs: 1000, jitterMaxMs: 3000 } : undefined,
-        );
+        const jitter = isBroadcast
+          ? await resolveBroadcastJitter(accountId, payload)
+          : undefined;
+        await this.rateGovernor.enforceLimits(accountId, jitter);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (message.includes('Daily message limit')) {

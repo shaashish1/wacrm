@@ -34,6 +34,7 @@ import { io } from '../socket';
 import crypto from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { extractProvidedEmail } from '../wa-email';
 
 const logger = pino({ level: 'silent' });
 
@@ -868,6 +869,7 @@ export class BaileysProvider implements IMessagingProvider {
             jid: part.id,
             phone,
             display_name: displayName,
+            email: extractProvidedEmail(part.email ?? part.eMail),
             is_admin: part.admin === 'admin' || part.admin === 'superadmin',
             is_super_admin: part.admin === 'superadmin',
           });
@@ -931,6 +933,7 @@ export class BaileysProvider implements IMessagingProvider {
           await this.upsertParticipantsAsContacts(
             accountId,
             group.subject || group.id,
+            groupRow.id,
             rows,
           );
         } catch (err) {
@@ -1007,6 +1010,7 @@ export class BaileysProvider implements IMessagingProvider {
   private async upsertParticipantsAsContacts(
     accountId: string,
     groupName: string,
+    groupId: string,
     participantRows: any[],
   ): Promise<{ contactsUpserted: number; tagged: number }> {
     const withPhone = participantRows.filter((r) => !!r.phone);
@@ -1026,32 +1030,50 @@ export class BaileysProvider implements IMessagingProvider {
     // 1) De-dup against existing contacts by normalized phone (digits
     //    only), matching the generated `phone_normalized` column.
     const normalize = (ph: string) => ph.replace(/\D/g, '');
-    const uniqueByNorm = new Map<string, { phone: string; display_name: string | null }>();
+    const uniqueByNorm = new Map<
+      string,
+      { phone: string; display_name: string | null; email: string | null }
+    >();
     for (const p of withPhone) {
       const norm = normalize(p.phone);
       if (!norm) continue;
       if (!uniqueByNorm.has(norm)) {
-        uniqueByNorm.set(norm, { phone: p.phone, display_name: p.display_name });
+        uniqueByNorm.set(norm, {
+          phone: p.phone,
+          display_name: p.display_name,
+          email: extractProvidedEmail(p.email),
+        });
       }
     }
 
-    const existingNorm = new Set<string>();
+    const existingByNorm = new Map<
+      string,
+      { id: string; email: string | null; source_group_id: string | null }
+    >();
     const allPhones = [...uniqueByNorm.values()].map((p) => p.phone);
     for (let i = 0; i < allPhones.length; i += 1000) {
       const chunk = allPhones.slice(i, i + 1000);
       const { data: existing } = await this.supabase
         .from('contacts')
-        .select('phone')
+        .select('id, phone, email, source_group_id')
         .eq('account_id', accountId)
         .in('phone', chunk);
-      (existing ?? []).forEach((c) => existingNorm.add(normalize(c.phone)));
+      (existing ?? []).forEach((c) =>
+        existingByNorm.set(normalize(c.phone), {
+          id: c.id,
+          email: c.email,
+          source_group_id: c.source_group_id,
+        }),
+      );
     }
 
     const toInsert = [...uniqueByNorm.entries()]
-      .filter(([norm]) => !existingNorm.has(norm))
+      .filter(([norm]) => !existingByNorm.has(norm))
       .map(([, p]) => ({
         phone: p.phone,
         name: p.display_name || null,
+        email: p.email,
+        source_group_id: groupId,
         account_id: accountId,
         user_id: ownerId,
       }));
@@ -1063,16 +1085,50 @@ export class BaileysProvider implements IMessagingProvider {
         .insert(toInsert.slice(i, i + CHUNK));
     }
 
-    // 2) Resolve contact ids (new + pre-existing) so we can tag them.
+    // 2) Resolve contact ids (new + pre-existing) so we can tag them
+    //    and write Group ID lineage. Fill email only when empty and
+    //    Baileys actually provided one. Do not clobber name/tags.
     const contactIds = new Set<string>();
+    const emailPatches: { id: string; email: string }[] = [];
+    const lineageIds: string[] = [];
     for (let i = 0; i < allPhones.length; i += 1000) {
       const chunk = allPhones.slice(i, i + 1000);
       const { data } = await this.supabase
         .from('contacts')
-        .select('id')
+        .select('id, phone, email, source_group_id')
         .eq('account_id', accountId)
         .in('phone', chunk);
-      (data ?? []).forEach((c) => contactIds.add(c.id));
+      for (const c of data ?? []) {
+        contactIds.add(c.id);
+        const incoming = uniqueByNorm.get(normalize(c.phone));
+        if (incoming?.email && !c.email) {
+          emailPatches.push({ id: c.id, email: incoming.email });
+        }
+        if (groupId && !c.source_group_id) lineageIds.push(c.id);
+      }
+    }
+    for (const patch of emailPatches) {
+      await this.supabase.from('contacts').update({ email: patch.email }).eq('id', patch.id);
+    }
+    for (let i = 0; i < lineageIds.length; i += CHUNK) {
+      await this.supabase
+        .from('contacts')
+        .update({ source_group_id: groupId })
+        .in('id', lineageIds.slice(i, i + CHUNK));
+    }
+
+    if (groupId && contactIds.size > 0) {
+      const membership = [...contactIds].map((contact_id) => ({
+        contact_id,
+        group_id: groupId,
+        account_id: accountId,
+      }));
+      for (let i = 0; i < membership.length; i += CHUNK) {
+        await this.supabase.from('contact_wa_groups').upsert(membership.slice(i, i + CHUNK), {
+          onConflict: 'contact_id,group_id',
+          ignoreDuplicates: true,
+        });
+      }
     }
 
     // 3) Ensure a per-group tag exists, then apply it to every contact.

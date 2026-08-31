@@ -19,7 +19,9 @@ import {
 } from '@/lib/broadcasts/enqueue-send-queue'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import type { MessageTemplate } from '@/types'
-import { loadMarketingEligibleIds } from '@/lib/consent'
+import { loadMarketingEligibleIds, NO_CONSENT_MESSAGE } from '@/lib/consent'
+import { jitterToMs, normalizeJitterSeconds } from '@/lib/broadcasts/jitter'
+import { preflightAudience, reviewCopy } from '@/lib/a2a/compliance'
 
 interface BroadcastResult {
   phone: string
@@ -310,6 +312,8 @@ interface PlainRecipient {
 
 async function enqueuePlainTextBroadcast(accountId: string, body: {
   recipients?: PlainRecipient[]
+  jitterMinSec?: number
+  jitterMaxSec?: number
 }) {
   const recipients = Array.isArray(body.recipients) ? body.recipients : []
   if (recipients.length === 0) {
@@ -328,12 +332,38 @@ async function enqueuePlainTextBroadcast(accountId: string, body: {
   const gateIds = recipients
     .map((r) => r.contact_id)
     .filter((id): id is string => Boolean(id))
+  const admin = supabaseAdmin()
   const eligible = await loadMarketingEligibleIds(
-    supabaseAdmin(),
+    admin,
     accountId,
     gateIds,
     'whatsapp',
   )
+
+  const sampleCopy = recipients.find((r) => r.body)?.body ?? ''
+  const copyGate = reviewCopy(sampleCopy)
+  if (!copyGate.allow) {
+    return NextResponse.json(
+      { error: `Compliance blocked send: ${copyGate.violations.join(', ')}` },
+      { status: 400 },
+    )
+  }
+
+  const audienceGate = await preflightAudience(admin, accountId, gateIds, sampleCopy)
+  if (audienceGate.eligible_count === 0) {
+    return NextResponse.json({ error: NO_CONSENT_MESSAGE }, { status: 400 })
+  }
+
+  const { data: accountRow } = await admin
+    .from('accounts')
+    .select('broadcast_jitter_min_sec, broadcast_jitter_max_sec')
+    .eq('id', accountId)
+    .maybeSingle()
+  const jitter = normalizeJitterSeconds(
+    body.jitterMinSec ?? accountRow?.broadcast_jitter_min_sec,
+    body.jitterMaxSec ?? accountRow?.broadcast_jitter_max_sec,
+  )
+  const jitterMs = jitterToMs(jitter)
 
   for (const recipient of recipients) {
     const phone = typeof recipient.phone === 'string' ? recipient.phone : ''
@@ -374,6 +404,8 @@ async function enqueuePlainTextBroadcast(accountId: string, body: {
       broadcastRecipientId: recipient.recipient_id,
       broadcastId: recipient.broadcast_id,
       contactId: recipient.contact_id,
+      jitterMinMs: jitterMs.jitterMinMs,
+      jitterMaxMs: jitterMs.jitterMaxMs,
     }
     jobs.push({
       accountId,

@@ -15,6 +15,11 @@ export class RateGovernor {
 
   /** last_connected_at we already delayed for, per account (this process). */
   private firstSendSeen = new Map<string, string>();
+  /** Broadcast sends in this process — used for a longer pause every N. */
+  private broadcastSendCount = new Map<string, number>();
+  private readonly PAUSE_EVERY = 25;
+  private readonly PAUSE_MIN_MS = 8000;
+  private readonly PAUSE_MAX_MS = 15000;
 
   constructor() {
     this.supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -46,7 +51,18 @@ export class RateGovernor {
 
     const jitter = await this.resolveJitter(accountId, options);
     if (jitter) {
-      await this.sleep(jitter.min + Math.random() * (jitter.max - jitter.min));
+      const extra = Math.random() * 400;
+      await this.sleep(jitter.min + Math.random() * (jitter.max - jitter.min) + extra);
+    }
+
+    if (options?.jitterMinMs != null && options?.jitterMaxMs != null) {
+      const n = (this.broadcastSendCount.get(accountId) ?? 0) + 1;
+      this.broadcastSendCount.set(accountId, n);
+      if (n % this.PAUSE_EVERY === 0) {
+        await this.sleep(
+          this.PAUSE_MIN_MS + Math.random() * (this.PAUSE_MAX_MS - this.PAUSE_MIN_MS),
+        );
+      }
     }
   }
 

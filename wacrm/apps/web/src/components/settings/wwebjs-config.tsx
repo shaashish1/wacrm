@@ -46,6 +46,9 @@ export function WWebJSConfig() {
   const [phoneInput, setPhoneInput] = useState('');
   const [requesting, setRequesting] = useState(false);
   const [updatingPreset, setUpdatingPreset] = useState(false);
+  const [jitterMin, setJitterMin] = useState('1');
+  const [jitterMax, setJitterMax] = useState('3');
+  const [savingJitter, setSavingJitter] = useState(false);
 
   const handlePresetChange = async (preset: string) => {
     if (!accountId) return;
@@ -62,6 +65,45 @@ export function WWebJSConfig() {
       setSession((prev: any) => ({ ...prev, config: newConfig }));
     }
     setUpdatingPreset(false);
+  };
+
+  useEffect(() => {
+    if (!accountId) return;
+    void supabase
+      .from('accounts')
+      .select('broadcast_jitter_min_sec, broadcast_jitter_max_sec')
+      .eq('id', accountId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        if (data.broadcast_jitter_min_sec != null) {
+          setJitterMin(String(data.broadcast_jitter_min_sec));
+        }
+        if (data.broadcast_jitter_max_sec != null) {
+          setJitterMax(String(data.broadcast_jitter_max_sec));
+        }
+      });
+  }, [accountId, supabase]);
+
+  const saveJitterDefaults = async () => {
+    if (!accountId) return;
+    setSavingJitter(true);
+    const min = Math.max(0, Math.min(300, Number(jitterMin) || 1));
+    const max = Math.max(min, Math.min(300, Number(jitterMax) || 3));
+    const { error } = await supabase
+      .from('accounts')
+      .update({
+        broadcast_jitter_min_sec: min,
+        broadcast_jitter_max_sec: max,
+      })
+      .eq('id', accountId);
+    if (error) toast.error('Failed to save delay settings');
+    else {
+      setJitterMin(String(min));
+      setJitterMax(String(max));
+      toast.success('Broadcast delay defaults saved');
+    }
+    setSavingJitter(false);
   };
   const [qrUpdatedAt, setQrUpdatedAt] = useState<number>(0);
   const [qrCountdown, setQrCountdown] = useState(20);
@@ -277,6 +319,48 @@ export function WWebJSConfig() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Baileys broadcast delay</CardTitle>
+          <CardDescription>
+            Default random delay (seconds) after warming. Per-broadcast values in the
+            wizard override this. Not a ToS or anti-ban guarantee.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Min</label>
+            <Input
+              type="number"
+              min={0}
+              max={300}
+              value={jitterMin}
+              onChange={(e) => setJitterMin(e.target.value)}
+              className="w-24"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Max</label>
+            <Input
+              type="number"
+              min={0}
+              max={300}
+              value={jitterMax}
+              onChange={(e) => setJitterMax(e.target.value)}
+              className="w-24"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={savingJitter}
+            onClick={saveJitterDefaults}
+          >
+            {savingJitter ? <Loader2 className="size-4 animate-spin" /> : 'Save delay'}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Risk Disclaimer */}
       <Alert

@@ -169,3 +169,18 @@ export async function filterMarketingEligible<
   const eligible = await loadMarketingEligibleIds(db, accountId, ids, channel);
   return filterByEligibleIds(contacts, eligible);
 }
+
+export async function countMarketingEligibility(
+  db: SupabaseClient,
+  accountId: string,
+  contactIds: string[],
+  channel: MarketingChannel = 'whatsapp',
+): Promise<{ eligible: number; ineligible: number; total: number }> {
+  const unique = [...new Set(contactIds.filter(Boolean))];
+  const eligible = await loadMarketingEligibleIds(db, accountId, unique, channel);
+  return {
+    eligible: eligible.size,
+    ineligible: unique.length - eligible.size,
+    total: unique.length,
+  };
+}

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireRole, toErrorResponse } from '@/lib/auth/account';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
+import { attachContactGroupLineage } from '@/lib/wa-groups/lineage';
 
 export async function POST(
   _req: Request,
@@ -56,6 +57,7 @@ export async function POST(
       .map((p) => ({
         phone: p.phone!,
         name: p.display_name || null,
+        source_group_id: id,
         account_id: ctx.accountId,
         user_id: ctx.userId,
       }));
@@ -75,6 +77,18 @@ export async function POST(
         }
       }
     }
+
+    const { data: contactRows } = await admin
+      .from('contacts')
+      .select('id')
+      .eq('account_id', ctx.accountId)
+      .in('phone', phones);
+    await attachContactGroupLineage(
+      admin,
+      ctx.accountId,
+      (contactRows ?? []).map((c) => c.id),
+      id,
+    );
 
     return NextResponse.json({
       imported,

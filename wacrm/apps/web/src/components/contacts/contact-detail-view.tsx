@@ -60,6 +60,11 @@ export function ContactDetailView({
   const { accountId, defaultCurrency } = useAuth();
 
   const [contact, setContact] = useState<Contact | null>(null);
+  const [sourceGroup, setSourceGroup] = useState<{
+    id: string;
+    subject: string | null;
+    jid: string;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
 
@@ -113,6 +118,16 @@ export function ContactDetailView({
       setEditPhone(data.phone);
       setEditEmail(data.email ?? '');
       setEditCompany(data.company ?? '');
+      if (data.source_group_id) {
+        const { data: group } = await supabase
+          .from('wa_groups')
+          .select('id, subject, jid')
+          .eq('id', data.source_group_id)
+          .maybeSingle();
+        setSourceGroup(group ?? { id: data.source_group_id, subject: null, jid: '' });
+      } else {
+        setSourceGroup(null);
+      }
     }
     setLoading(false);
   }, [contactId, supabase]);
@@ -512,6 +527,14 @@ export function ContactDetailView({
                       onChange={(e) => setEditEmail(e.target.value)}
                       className="bg-muted border-border text-foreground h-8 text-sm"
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-muted-foreground text-xs">{t('sourceGroupId')}</Label>
+                    <p className="rounded-md border border-border bg-muted px-3 py-1.5 font-mono text-xs text-foreground">
+                      {sourceGroup
+                        ? `${sourceGroup.subject ? `${sourceGroup.subject} · ` : ''}${sourceGroup.id}`
+                        : t('sourceGroupEmpty')}
+                    </p>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-muted-foreground text-xs">{t('company')}</Label>

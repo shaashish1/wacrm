@@ -157,6 +157,7 @@ function NewBroadcastWizard() {
   async function handleSend(
     scheduledAt?: string | null,
     recurrence?: 'daily' | 'weekly' | null,
+    jitter?: { minSec: number; maxSec: number } | null,
   ) {
     if (isWwebjs) {
       if (!plainDraft.body.trim()) return;
@@ -180,6 +181,8 @@ function NewBroadcastWizard() {
         headerMediaUrl,
         scheduledAt,
         recurrence,
+        jitterMinSec: jitter?.minSec,
+        jitterMaxSec: jitter?.maxSec,
         ...(isWwebjs
           ? {
               plainText: {
@@ -372,6 +375,7 @@ function NewBroadcastWizard() {
                   isPlainText
                   plainTextPreview={plainDraft.body}
                   audience={audience}
+                  showJitter
                   onSend={handleSend}
                   onSaveDraft={handleSaveDraft}
                   onBack={() => setCurrentStep(1)}

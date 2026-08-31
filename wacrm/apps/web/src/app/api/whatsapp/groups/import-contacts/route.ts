@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireRole, toErrorResponse } from '@/lib/auth/account';
+import { attachContactGroupLineage } from '@/lib/wa-groups/lineage';
 
 export async function POST(req: Request) {
   try {
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
 
     const { data: participants, error: fetchErr } = await ctx.supabase
       .from('wa_group_participants')
-      .select('phone, display_name, account_id')
+      .select('phone, display_name, account_id, group_id')
       .in('id', participantIds)
       .eq('account_id', ctx.accountId)
       .not('phone', 'is', null);
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
       .map((p) => ({
         phone: p.phone!,
         name: p.display_name || null,
+        source_group_id: p.group_id || null,
         account_id: ctx.accountId,
         user_id: ctx.userId,
       }));
@@ -65,6 +67,25 @@ export async function POST(req: Request) {
         );
       }
       imported = count ?? toInsert.length;
+    }
+
+    const { data: contactRows } = await ctx.supabase
+      .from('contacts')
+      .select('id, phone')
+      .in('phone', phones);
+    const phoneToGroup = new Map(
+      participants.map((p) => [p.phone!, p.group_id as string]),
+    );
+    const byGroup = new Map<string, string[]>();
+    for (const c of contactRows ?? []) {
+      const gid = phoneToGroup.get(c.phone);
+      if (!gid) continue;
+      const list = byGroup.get(gid) ?? [];
+      list.push(c.id);
+      byGroup.set(gid, list);
+    }
+    for (const [groupId, ids] of byGroup) {
+      await attachContactGroupLineage(ctx.supabase, ctx.accountId, ids, groupId);
     }
 
     return NextResponse.json({

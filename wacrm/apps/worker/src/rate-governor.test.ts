@@ -67,4 +67,30 @@ describe('RateGovernor', () => {
     expect(ms).toBeLessThanOrEqual(60_000);
     sleep.mockRestore();
   });
+
+  it('uses caller-supplied jitter after warming (not a hardcoded 1–3s)', async () => {
+    rpcMock.mockResolvedValue({ data: 10, error: null });
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        warming_started_at: null,
+        warming_graduated_at: new Date().toISOString(),
+        last_connected_at: 'already-seen',
+      },
+      error: null,
+    });
+    (governor as unknown as { firstSendSeen: Map<string, string> }).firstSendSeen.set(
+      'acc-1',
+      'already-seen',
+    );
+    const sleep = vi
+      .spyOn(governor as unknown as { sleep: (ms: number) => Promise<void> }, 'sleep')
+      .mockResolvedValue(undefined);
+
+    await governor.enforceLimits('acc-1', { jitterMinMs: 5000, jitterMaxMs: 9000 });
+    expect(sleep).toHaveBeenCalled();
+    const ms = sleep.mock.calls[0][0];
+    expect(ms).toBeGreaterThanOrEqual(5000);
+    expect(ms).toBeLessThanOrEqual(9400);
+    sleep.mockRestore();
+  });
 });
