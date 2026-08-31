@@ -3,7 +3,9 @@
 **Repo:** `shaashish1/wacrm` (`main`)  
 **Frozen product SHA:** `e65104b87a9ae344d66e0507811ceccb12bf6ffd`  
 **Recorded:** 2026-08-30 (`git rev-parse HEAD` before this file landed; that commit is PRD + PLAN only)  
-**Companions:** [PRD-doral-healthcare.md](./PRD-doral-healthcare.md), [PLAN-doral-healthcare.md](./PLAN-doral-healthcare.md), [production.md](./production.md)
+**Companions:** [PRD-doral-healthcare.md](./PRD-doral-healthcare.md), [PLAN-doral-healthcare.md](./PLAN-doral-healthcare.md), [ARCHITECTURE.md](./ARCHITECTURE.md), [production.md](./production.md)
+
+**Enterprise user stories** (QR extract, delayed Baileys broadcast, schedule, BYOK LLM keys, REST/sync, consent vs existing contacts) live in [PLAN §1](./PLAN-doral-healthcare.md) and [PRD §4.1](./PRD-doral-healthcare.md) — not here.
 
 All Doral work extends **this repo only**. Do not fork a second WhatsApp stack.
 
@@ -13,7 +15,7 @@ All Doral work extends **this repo only**. Do not fork a second WhatsApp stack.
 
 - Existing WaCRM: inbox, contacts, contact-groups, wa-groups sync/import, broadcasts, email campaigns, automations, flows, pipelines, agents playground, MCP (`mcp-server` / `wacrm-mcp`), `/api/v1` (me, messages, contacts, conversations, broadcasts, webhooks).
 - Lite production: **web `:3100` + worker `:4000` + Redis + hosted Supabase**. See [production.md](./production.md).
-- Later phases on this tree: consent/marketing, REST/group admin, in-app A2A agents, Doral theme. Sequence is in the PLAN.
+- Later phases on this tree: consent/marketing, full REST + group sync/admin, in-app A2A agents, Doral theme. Sequence and challenges are in the PLAN.
 
 ## Archived / do not merge
 
