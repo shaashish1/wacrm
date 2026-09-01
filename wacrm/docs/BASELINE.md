@@ -13,7 +13,7 @@ All product work extends **this repo only**. Do not fork a second WhatsApp stack
 
 ## In scope (build here)
 
-- Existing AudienceGate (`wacrm` codebase): inbox, contacts, contact-groups, wa-groups sync/import, broadcasts, email campaigns, automations, flows, pipelines, agents playground, MCP (`mcp-server` / `wacrm-mcp`), `/api/v1` (me, messages, contacts, conversations, broadcasts, webhooks, wa-groups, consents, contact-groups, campaigns, pipelines, deals).
+- Existing AudienceGate (`wacrm` codebase): inbox, contacts, contact-groups, wa-groups sync/import, broadcasts, email campaigns, automations, flows, pipelines, agents playground, MCP (`mcp-server` / `wacrm-mcp`), `/api/v1` (me, messages, contacts, conversations, broadcasts, webhooks, wa-groups, consents, contact-groups, campaigns, pipelines, deals, landings).
 - Lite production: **web `:3100` + worker `:4000` + Redis + hosted Supabase**. See [production.md](./production.md).
 - Later phases on this tree: consent/marketing, full REST + group sync/admin, in-app A2A agents, clinic theme. Sequence and challenges are in the PLAN.
 

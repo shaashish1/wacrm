@@ -3,11 +3,20 @@ import { describe, expect, it } from 'vitest';
 import { NO_CONSENT_MESSAGE } from '../../consent';
 import { hasScope } from '../../api-keys/scopes';
 
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import {
   campaignMarketingChannel,
   decideCampaignEnroll,
+  decideCampaignResume,
   enrollRefused,
+  parseCampaignCreate,
+  parseCampaignSteps,
+  parseCampaignUpdate,
   parseEnrollContactIds,
+  resumeRefused,
   serializeCampaign,
   serializeCampaignStep,
   serializeEnrollment,
@@ -131,6 +140,116 @@ describe('serializeCampaign', () => {
 
     const detailed = serializeCampaign(row, { includeSteps: true });
     expect(detailed.steps?.map((s) => s.id)).toEqual(['s1', 's2']);
+  });
+});
+
+describe('parseCampaignCreate / parseCampaignUpdate', () => {
+  it('creates a draft and refuses status=active (no implied blast)', () => {
+    const created = parseCampaignCreate({
+      name: ' Wellness week ',
+      channel: 'whatsapp',
+      steps: [{ channel: 'whatsapp', delay_hours: 0 }],
+    });
+    expect(created).toMatchObject({
+      ok: true,
+      value: { name: 'Wellness week', channel: 'whatsapp' },
+    });
+    if (created.ok) {
+      expect(created.value.steps).toHaveLength(1);
+      expect(created.value).not.toHaveProperty('status');
+    }
+
+    const refused = parseCampaignCreate({ name: 'X', status: 'active' });
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) expect(refused.message).toMatch(/draft/i);
+  });
+
+  it('refuses contact_ids on create and update so they cannot enroll the book', () => {
+    expect(
+      parseCampaignCreate({ name: 'X', contact_ids: ['c1'] }).ok
+    ).toBe(false);
+    expect(
+      parseCampaignUpdate({ name: 'X', contact_ids: ['c1'] }).ok
+    ).toBe(false);
+  });
+
+  it('refuses status on update — pause/resume are the lifecycle path', () => {
+    const refused = parseCampaignUpdate({ status: 'active' });
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) expect(refused.message).toMatch(/pause|resume/i);
+  });
+
+  it('parses a name-only update', () => {
+    expect(parseCampaignUpdate({ name: ' New title ' })).toEqual({
+      ok: true,
+      value: { name: 'New title' },
+    });
+  });
+});
+
+describe('parseCampaignSteps', () => {
+  it('returns null for a non-array', () => {
+    expect(parseCampaignSteps('x')).toBeNull();
+  });
+
+  it('defaults channel to email and position from index', () => {
+    expect(parseCampaignSteps([{ delay_hours: 12 }])).toEqual([
+      {
+        position: 1,
+        channel: 'email',
+        delay_hours: 12,
+        email_template_id: null,
+        whatsapp_template_name: null,
+        exit_on_reply: true,
+      },
+    ]);
+  });
+});
+
+describe('decideCampaignResume / resumeRefused', () => {
+  it('returns only consented paused enrollments to the cron path', () => {
+    expect(
+      decideCampaignResume(['c-yes', 'c-no', 'c-yes'], new Set(['c-yes']))
+    ).toEqual({
+      toResume: ['c-yes'],
+      skippedNoConsent: ['c-no'],
+    });
+  });
+
+  it('refuses a paused campaign when nobody is eligible (imported book)', () => {
+    const decision = decideCampaignResume(
+      ['c-import-1', 'c-import-2'],
+      new Set()
+    );
+    expect(resumeRefused('paused', decision, 2)).toBe(true);
+    expect(decision.toResume).toEqual([]);
+    expect(NO_CONSENT_MESSAGE).toMatch(/consent/i);
+  });
+
+  it('refuses a paused campaign with zero enrollments', () => {
+    expect(
+      resumeRefused('paused', { toResume: [], skippedNoConsent: [] }, 0)
+    ).toBe(true);
+  });
+
+  it('does not refuse an already-active campaign with nothing paused', () => {
+    expect(
+      resumeRefused('active', { toResume: [], skippedNoConsent: [] }, 0)
+    ).toBe(false);
+  });
+});
+
+describe('resume does not send WhatsApp', () => {
+  it('resumeCampaign only writes enrollment rows — no send import', () => {
+    const src = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), 'campaigns.ts'),
+      'utf8'
+    );
+    expect(src).toMatch(/export async function resumeCampaign/);
+    expect(src).not.toMatch(
+      /send-message|wwebjsMessageQueue|sendMessageToConversation|sendText/
+    );
+    expect(src).toMatch(/Does not send[\s\S]{0,20}WhatsApp/);
   });
 });
 

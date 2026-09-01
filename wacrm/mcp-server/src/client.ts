@@ -280,4 +280,17 @@ export class WacrmClient {
   getDeal(id: string): Promise<{ data: unknown }> {
     return this.request('GET', `/deals/${encodeURIComponent(id)}`);
   }
+
+  // --- Landings -----------------------------------------------------
+
+  listLandings(query: {
+    limit?: number;
+    cursor?: string;
+  }): Promise<Paginated<unknown>> {
+    return this.list('/landings', query);
+  }
+
+  getLanding(id: string): Promise<{ data: unknown }> {
+    return this.request('GET', `/landings/${encodeURIComponent(id)}`);
+  }
 }

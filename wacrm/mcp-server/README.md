@@ -92,6 +92,8 @@ when their guard is set.
 | `get_pipeline`       | read      | `pipelines:read`     | Read one pipeline                           |
 | `list_deals`         | read      | `pipelines:read`     | List deals (filter by pipeline/status)      |
 | `get_deal`           | read      | `pipelines:read`     | Read one deal                               |
+| `list_landings`      | read      | `landings:read`      | List marketing landing pages                |
+| `get_landing`        | read      | `landings:read`      | Read one landing page                       |
 | `send_message`       | write     | `messages:send`      | Send a WhatsApp message (text/template/media)   |
 | `create_contact`     | write     | `contacts:write`     | Create (find-or-create) a contact               |
 | `update_contact`     | write     | `contacts:write`     | Update a contact / replace its tags             |

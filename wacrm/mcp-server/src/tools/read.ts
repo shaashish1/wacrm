@@ -349,4 +349,32 @@ export function registerReadTools(server: McpServer, client: WacrmClient): void 
     },
     handle(async ({ id }) => jsonResult(await client.getDeal(id))),
   );
+
+  server.registerTool(
+    'list_landings',
+    {
+      title: 'List landings',
+      description:
+        'List marketing landing pages, newest first. Paginated. Writes stay on the REST API.',
+      inputSchema: {
+        limit: z.number().int().min(1).max(100).optional().describe('Page size, 1–100 (default 50).'),
+        cursor: z.string().optional().describe('Opaque pagination cursor.'),
+      },
+      annotations: { ...READ_ONLY, title: 'List landings' },
+    },
+    handle(async (args) => jsonResult(await client.listLandings(args))),
+  );
+
+  server.registerTool(
+    'get_landing',
+    {
+      title: 'Get landing',
+      description: 'Read a single marketing landing page by id.',
+      inputSchema: {
+        id: z.string().describe('Landing page id.'),
+      },
+      annotations: { ...READ_ONLY, title: 'Get landing' },
+    },
+    handle(async ({ id }) => jsonResult(await client.getLanding(id))),
+  );
 }

@@ -120,6 +120,15 @@ describe("requireApiKey", () => {
     );
   });
 
+  it("403s landing writes when the key has landings:read but not landings:write", async () => {
+    findActiveKeyByHash.mockResolvedValue(row({ scopes: ["landings:read"] }));
+    await expectApiError(
+      requireApiKey(reqWith(`Bearer ${KEY}`), "landings:write"),
+      "forbidden",
+      403,
+    );
+  });
+
   it("passes when the key has the required scope", async () => {
     findActiveKeyByHash.mockResolvedValue(row({ scopes: ["messages:send"] }));
     const ctx = await requireApiKey(reqWith(`Bearer ${KEY}`), "messages:send");

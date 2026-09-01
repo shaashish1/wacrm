@@ -7,9 +7,10 @@ broadcasts — without going through the dashboard UI.
 > **Status:** stable. Authentication, scopes, rate limiting, the
 > messages / contacts / conversations / broadcasts endpoints,
 > WhatsApp groups, CRM contact groups, consents, drip campaigns
-> (read / enroll / pause), pipelines / deals, and outbound event
-> [webhooks](#webhooks) all ship now. Baileys group-admin
-> (add / remove / promote) is still deferred.
+> (create / update / read / enroll / pause / resume), pipelines /
+> deals, landing pages, and outbound event [webhooks](#webhooks)
+> all ship now. Baileys group-admin (add / remove / promote) and a
+> durable webhook delivery queue are still deferred.
 
 ## Authentication
 
@@ -60,9 +61,11 @@ it. Grant the minimum.
 | `contact-groups:read` | List and read CRM contact groups        |
 | `contact-groups:write` | Create and manage CRM contact groups   |
 | `campaigns:read`     | List and read drip campaigns + enrollments |
-| `campaigns:send`     | Enroll consented contacts; pause campaigns |
+| `campaigns:send`     | Create / update campaigns; enroll; pause / resume (does not send) |
 | `pipelines:read`     | List and read pipelines, stages, and deals |
 | `pipelines:write`    | Create and manage pipelines, stages, and deals |
+| `landings:read`      | List and read marketing landing pages |
+| `landings:write`     | Create and update marketing landing pages |
 
 A key with **no scopes** still authenticates and can call
 `GET /api/v1/me` — useful for verifying a key works.
@@ -373,10 +376,31 @@ List drip campaigns, newest first. Scope: `campaigns:read`. Paginated.
 Each row includes `enrollment_count` and `step_count` (not the step
 bodies).
 
+### `POST /api/v1/campaigns`
+
+Create a drip campaign. Scope: `campaigns:send`. Always stored as
+`draft`. Does **not** enroll contacts and does **not** send WhatsApp
+— creating a campaign cannot blast the imported book. `contact_ids`
+and `status` other than `draft` are refused.
+
+`name` is required. Optional: `channel` (`email` / `whatsapp` /
+`multi`), `audience_type`, `audience_group_id` (must belong to this
+account), `audience_filter`, `trigger_type`, `trigger_config`,
+`steps` (`[{ "channel", "delay_hours"?, "email_template_id"?,
+"whatsapp_template_name"? }]`). Returns `201` with the campaign +
+steps.
+
 ### `GET /api/v1/campaigns/{id}`
 
 Read one campaign with `steps`. Scope: `campaigns:read`. `404` for
 another account.
+
+### `PATCH /api/v1/campaigns/{id}`
+
+Update name, channel, audience, trigger, or replace `steps`. Scope:
+`campaigns:send`. Does not enroll or send. Do not send `status` —
+use `/pause` and `/resume`. `contact_ids` is refused (use `/enroll`).
+Another account's campaign returns `404`.
 
 ### `GET /api/v1/campaigns/{id}/enrollments`
 
@@ -425,6 +449,61 @@ Response (202):
 
 Pause a campaign and hold active enrollments (`next_send_at` cleared)
 so cron stops dequeuing. Scope: `campaigns:send`. Does not send.
+
+### `POST /api/v1/campaigns/{id}/resume`
+
+Return paused enrollments to the existing campaign cron
+(`/api/campaigns/cron`). Scope: `campaigns:send`. Does **not** send
+WhatsApp — it only sets consented paused rows back to `active` with
+`next_send_at` now, and marks a `paused` campaign `active`. Contacts
+without an active consent row stay paused. An empty eligible set is
+refused (`400`, `code: "no_consent"`). A `draft` campaign cannot be
+resumed — enroll first.
+
+```json
+{
+  "data": {
+    "status": "active",
+    "resumed": 2,
+    "skipped_no_consent": 4,
+    "campaign_status": "active"
+  }
+}
+```
+
+### `GET /api/v1/landings`
+
+List marketing landing pages, newest first. Scope: `landings:read`.
+Paginated. Includes unpublished drafts. The public form is still
+`/p/{slug}` — this list is account-scoped and does not grant consent.
+
+```json
+{
+  "data": [
+    {
+      "id": "…", "slug": "wellness-week", "title": "Wellness week",
+      "headline": "Request a wellness consult", "body": "…",
+      "consent_copy": "I agree to receive…", "published": true,
+      "created_at": "…", "updated_at": "…"
+    }
+  ],
+  "meta": { "next_cursor": null }
+}
+```
+
+### `POST /api/v1/landings`
+
+Create a landing page. Scope: `landings:write`. Required: `slug`
+(lowercase letters, numbers, hyphens; 1–64 chars), `title`. Optional:
+`headline`, `body`, `consent_copy`, `published` (default `false`).
+Slug is globally unique — a collision returns `409` `conflict`.
+Returns `201`. Does not send WhatsApp and does not write consent rows.
+
+### `GET` / `PATCH /api/v1/landings/{id}`
+
+Read or update one landing. Scopes: `landings:read` / `landings:write`.
+`PATCH` accepts `slug`, `title`, `headline`, `body`, `consent_copy`,
+`published`. Another account's landing returns `404`.
 
 ### `GET /api/v1/pipelines`
 
@@ -581,8 +660,8 @@ internal targets are refused at delivery time.
 ## Roadmap
 
 Phase 2 REST is shipped: WhatsApp groups (read + sync), CRM contact
-groups (CRUD + members), consents (read), campaigns (read / enroll /
-pause), and pipelines / deals. Still deferred: Baileys group-admin
-actions (add / remove / promote) — the worker has no safe add/remove
-path today. Templates, flows, and a webhook delivery queue are not
-scheduled.
+groups (CRUD + members), consents (read), campaigns (create / update /
+read / enroll / pause / resume), pipelines / deals, and landing pages.
+Still deferred: Baileys group-admin actions (add / remove / promote)
+— the worker has no safe add/remove path today. Templates, flows, and
+a webhook delivery queue are not scheduled.

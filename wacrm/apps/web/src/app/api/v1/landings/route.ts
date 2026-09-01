@@ -1,8 +1,6 @@
 // ============================================================
-// GET  /api/v1/campaigns — list drip campaigns (scope: campaigns:read)
-// POST /api/v1/campaigns — create a draft (scope: campaigns:send)
-//
-// Create always persists status=draft and does not enroll or send.
+// GET  /api/v1/landings — list (scope: landings:read)
+// POST /api/v1/landings — create (scope: landings:write)
 // ============================================================
 
 import { requireApiKey } from '@/lib/auth/api-context';
@@ -13,19 +11,19 @@ import {
   buildPage,
 } from '@/lib/api/v1/pagination';
 import {
-  CAMPAIGN_DETAIL_SELECT,
-  createCampaign,
-  serializeCampaign,
-} from '@/lib/api/v1/campaigns';
+  LANDING_SELECT,
+  createLanding,
+  serializeLanding,
+} from '@/lib/api/v1/landings';
 
 export async function GET(request: Request) {
   try {
-    const ctx = await requireApiKey(request, 'campaigns:read');
+    const ctx = await requireApiKey(request, 'landings:read');
     const { limit, cursor } = parseListParams(request);
 
     let query = ctx.supabase
-      .from('campaigns')
-      .select(CAMPAIGN_DETAIL_SELECT)
+      .from('landing_pages')
+      .select(LANDING_SELECT)
       .eq('account_id', ctx.accountId)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
@@ -36,8 +34,8 @@ export async function GET(request: Request) {
 
     const { data, error } = await query;
     if (error) {
-      console.error('[api/v1/campaigns] list error:', error);
-      return fail('internal', 'Failed to list campaigns', 500);
+      console.error('[api/v1/landings] list error:', error);
+      return fail('internal', 'Failed to list landings', 500);
     }
 
     const { items, nextCursor } = buildPage(
@@ -45,7 +43,7 @@ export async function GET(request: Request) {
       limit
     );
     return okList(
-      items.map((r) => serializeCampaign(r as Record<string, unknown>)),
+      items.map((r) => serializeLanding(r as Record<string, unknown>)),
       nextCursor
     );
   } catch (err) {
@@ -55,19 +53,22 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const ctx = await requireApiKey(request, 'campaigns:send');
+    const ctx = await requireApiKey(request, 'landings:write');
     const body = await request.json().catch(() => null);
-    const result = await createCampaign(ctx.supabase, {
+    const result = await createLanding(ctx.supabase, {
       accountId: ctx.accountId,
       body,
     });
     if (!result.ok) {
+      if (result.code === 'conflict') {
+        return fail('conflict', result.message, 409);
+      }
       if (result.code === 'internal') {
         return fail('internal', result.message, 500);
       }
       return fail('bad_request', result.message, 400);
     }
-    return ok(result.campaign, 201);
+    return ok(result.landing, 201);
   } catch (err) {
     return toApiErrorResponse(err);
   }
