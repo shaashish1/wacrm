@@ -44,7 +44,7 @@ data or send messages, add `"WACRM_ENABLE_WRITES": "true"` (and
 
 - **Reads (always on):** `whoami`, contacts (list/get), conversations
   (list/get), messages (list), broadcast status, WhatsApp groups,
-  consents, contact groups.
+  consents, contact groups, campaigns, pipelines, deals.
 - **Writes (opt-in):** send a message, create/update a contact.
 - **Broadcasts (opt-in):** launch a template broadcast — requires an
   explicit `confirm` and is marked destructive.

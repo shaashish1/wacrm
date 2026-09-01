@@ -111,6 +111,15 @@ describe("requireApiKey", () => {
     );
   });
 
+  it("403s campaign enroll when the key has campaigns:read but not campaigns:send", async () => {
+    findActiveKeyByHash.mockResolvedValue(row({ scopes: ["campaigns:read"] }));
+    await expectApiError(
+      requireApiKey(reqWith(`Bearer ${KEY}`), "campaigns:send"),
+      "forbidden",
+      403,
+    );
+  });
+
   it("passes when the key has the required scope", async () => {
     findActiveKeyByHash.mockResolvedValue(row({ scopes: ["messages:send"] }));
     const ctx = await requireApiKey(reqWith(`Bearer ${KEY}`), "messages:send");

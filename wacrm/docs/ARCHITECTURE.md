@@ -274,7 +274,7 @@ v1 A2A is **same-origin** inside the web app (`apps/web/src/lib/a2a/`, cards at 
 | Broadcast select + `scheduled_at` | Built | UI + `/api/broadcasts/cron` |
 | RateGovernor jitter / daily cap | Built | `apps/worker/src/rate-governor.ts` |
 | BYOK LLM keys encrypted | Built | `/api/ai/config`, `ai_configs` |
-| Full `/api/v1` (groups, campaigns, consents, pipelines) | **Partial** | Phase 2: wa-groups read/sync, consents read, contact-groups CRUD. Campaigns / pipelines / group-admin still open |
+| Full `/api/v1` (groups, campaigns, consents, pipelines) | **Partial** | Phase 2: wa-groups, consents, contact-groups, campaigns read/enroll/pause, pipelines/deals. Group-admin still open |
 | In-process scheduler (no GitHub/cron) | **Planned** | Cron remains an external pinger |
 | Configurable / higher-quality delay distribution | Built | Broadcast + account min/max seconds; RateGovernor uses payload/account |
 | A2A agents + cards + task store | Built (five agents) | Compliance, Qualifier, Content, Booking, Analytics; `docs/a2a.md` |

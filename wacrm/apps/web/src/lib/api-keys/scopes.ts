@@ -27,6 +27,10 @@ export const API_SCOPES = [
   'consents:read',
   'contact-groups:read',
   'contact-groups:write',
+  'campaigns:read',
+  'campaigns:send',
+  'pipelines:read',
+  'pipelines:write',
 ] as const;
 
 export type ApiScope = (typeof API_SCOPES)[number];
@@ -46,6 +50,10 @@ export const SCOPE_DESCRIPTIONS: Record<ApiScope, string> = {
   'consents:read': 'List and read marketing consent ledger rows',
   'contact-groups:read': 'List and read CRM contact groups and members',
   'contact-groups:write': 'Create, update, and manage CRM contact groups',
+  'campaigns:read': 'List and read drip campaigns and enrollments',
+  'campaigns:send': 'Enroll consented contacts and pause campaigns',
+  'pipelines:read': 'List and read pipelines, stages, and deals',
+  'pipelines:write': 'Create and manage pipelines, stages, and deals',
 };
 
 /** Type-narrow an unknown value into a valid `ApiScope`. */

@@ -177,7 +177,7 @@ Ship tenant #1 on what already works. Do not rebuild.
 | RateGovernor (250/day, warming, 1–3s jitter) | Baileys anti-burst for **US-2** | Delay policy UI; better distribution; not a ban warranty |
 | Email config + drip `/campaigns` | Nurture | Unsubscribe + consent parity with WhatsApp (P0) |
 | AI playground, KB, auto-reply, `/api/ai/config` | **US-4** BYOK keys (GCM / `ENCRYPTION_KEY`) | A2A specialists consume the same keys (Phase 4) |
-| MCP (`wacrm-mcp`) + `/api/v1` | Ashish / Cursor tools | Phase 2 foundation shipped: wa-groups read/sync, consents read, contact-groups CRUD. Still open: campaigns, pipelines, group-admin actions |
+| MCP (`wacrm-mcp`) + `/api/v1` | Ashish / Cursor tools | Phase 2 REST shipped: wa-groups, consents, contact-groups, campaigns read/enroll/pause, pipelines/deals. Still open: Baileys group-admin |
 | Roles: viewer < agent < admin < owner | Least privilege | Cannot disable consent; CSV export admin+ (confirm); agent capability flags (P1) |
 
 **Lite deploy (constraint):** `docker-compose.yml` = web `:3100` + worker `:4000` + Redis. Postgres/Auth = **hosted Supabase**. Cron via GitHub Actions or host crontab hitting existing `/api/broadcasts/cron`, `/api/campaigns/cron`, `/api/automations/cron`, `/api/flows/cron`. Socket.IO optional.
@@ -328,7 +328,7 @@ All five are **in-app**. Each publishes a card. Orchestrator (inbox bot or Conci
 
 | ID | Requirement |
 | --- | --- |
-| P1-1 | **Full REST remainder**: campaigns, deals/pipelines, landings, Baileys group-admin. Foundation (wa-groups, consents, contact-groups) is shipped. |
+| P1-1 | **Full REST remainder**: landings, Baileys group-admin. Campaigns + pipelines/deals shipped. |
 | P1-2 | WA **group admin** + durable contact↔Group ID lineage (not only tags) + reliable sync on Baileys. |
 | P1-3 | Content + Booking + Analytics agents on A2A (consume US-4 keys). |
 | P1-4 | Content calendar UI. |

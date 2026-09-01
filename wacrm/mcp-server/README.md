@@ -85,6 +85,13 @@ when their guard is set.
 | `list_contact_groups`| read      | `contact-groups:read`| List CRM contact groups                         |
 | `get_contact_group`  | read      | `contact-groups:read`| Read one contact group                          |
 | `list_contact_group_members` | read | `contact-groups:read` | List a contact group's member ids          |
+| `list_campaigns`     | read      | `campaigns:read`     | List drip campaigns (paginated)             |
+| `get_campaign`       | read      | `campaigns:read`     | Read one campaign + steps                   |
+| `list_campaign_enrollments` | read | `campaigns:read`  | List a campaign's enrollments               |
+| `list_pipelines`     | read      | `pipelines:read`     | List pipelines + stages                     |
+| `get_pipeline`       | read      | `pipelines:read`     | Read one pipeline                           |
+| `list_deals`         | read      | `pipelines:read`     | List deals (filter by pipeline/status)      |
+| `get_deal`           | read      | `pipelines:read`     | Read one deal                               |
 | `send_message`       | write     | `messages:send`      | Send a WhatsApp message (text/template/media)   |
 | `create_contact`     | write     | `contacts:write`     | Create (find-or-create) a contact               |
 | `update_contact`     | write     | `contacts:write`     | Update a contact / replace its tags             |

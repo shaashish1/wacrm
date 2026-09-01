@@ -246,4 +246,107 @@ export function registerReadTools(server: McpServer, client: WacrmClient): void 
       jsonResult(await client.listContactGroupMembers(group_id, { limit, cursor })),
     ),
   );
+
+  server.registerTool(
+    'list_campaigns',
+    {
+      title: 'List campaigns',
+      description:
+        'List drip campaigns, newest first. Paginated. Enroll/pause stay on the REST API (writes are opt-in and consent-gated).',
+      inputSchema: {
+        limit: z.number().int().min(1).max(100).optional().describe('Page size, 1–100 (default 50).'),
+        cursor: z.string().optional().describe('Opaque pagination cursor.'),
+      },
+      annotations: { ...READ_ONLY, title: 'List campaigns' },
+    },
+    handle(async (args) => jsonResult(await client.listCampaigns(args))),
+  );
+
+  server.registerTool(
+    'get_campaign',
+    {
+      title: 'Get campaign',
+      description: 'Read a single drip campaign by id, including steps.',
+      inputSchema: {
+        id: z.string().describe('Campaign id.'),
+      },
+      annotations: { ...READ_ONLY, title: 'Get campaign' },
+    },
+    handle(async ({ id }) => jsonResult(await client.getCampaign(id))),
+  );
+
+  server.registerTool(
+    'list_campaign_enrollments',
+    {
+      title: 'List campaign enrollments',
+      description: 'List enrollments for a drip campaign. Paginated.',
+      inputSchema: {
+        campaign_id: z.string().describe('Campaign id.'),
+        limit: z.number().int().min(1).max(100).optional().describe('Page size, 1–100 (default 50).'),
+        cursor: z.string().optional().describe('Opaque pagination cursor.'),
+      },
+      annotations: { ...READ_ONLY, title: 'List campaign enrollments' },
+    },
+    handle(async ({ campaign_id, limit, cursor }) =>
+      jsonResult(await client.listCampaignEnrollments(campaign_id, { limit, cursor })),
+    ),
+  );
+
+  server.registerTool(
+    'list_pipelines',
+    {
+      title: 'List pipelines',
+      description: 'List CRM pipelines with stages, newest first. Paginated.',
+      inputSchema: {
+        limit: z.number().int().min(1).max(100).optional().describe('Page size, 1–100 (default 50).'),
+        cursor: z.string().optional().describe('Opaque pagination cursor.'),
+      },
+      annotations: { ...READ_ONLY, title: 'List pipelines' },
+    },
+    handle(async (args) => jsonResult(await client.listPipelines(args))),
+  );
+
+  server.registerTool(
+    'get_pipeline',
+    {
+      title: 'Get pipeline',
+      description: 'Read a single pipeline by id, including stages.',
+      inputSchema: {
+        id: z.string().describe('Pipeline id.'),
+      },
+      annotations: { ...READ_ONLY, title: 'Get pipeline' },
+    },
+    handle(async ({ id }) => jsonResult(await client.getPipeline(id))),
+  );
+
+  server.registerTool(
+    'list_deals',
+    {
+      title: 'List deals',
+      description:
+        'List deals, newest first. Optional filters: pipeline_id, status (open/won/lost), contact_id. Paginated.',
+      inputSchema: {
+        pipeline_id: z.string().optional().describe('Only deals on this pipeline.'),
+        status: z.enum(['open', 'won', 'lost']).optional().describe('Deal status filter.'),
+        contact_id: z.string().optional().describe('Only deals for this contact.'),
+        limit: z.number().int().min(1).max(100).optional().describe('Page size, 1–100 (default 50).'),
+        cursor: z.string().optional().describe('Opaque pagination cursor.'),
+      },
+      annotations: { ...READ_ONLY, title: 'List deals' },
+    },
+    handle(async (args) => jsonResult(await client.listDeals(args))),
+  );
+
+  server.registerTool(
+    'get_deal',
+    {
+      title: 'Get deal',
+      description: 'Read a single deal by id.',
+      inputSchema: {
+        id: z.string().describe('Deal id.'),
+      },
+      annotations: { ...READ_ONLY, title: 'Get deal' },
+    },
+    handle(async ({ id }) => jsonResult(await client.getDeal(id))),
+  );
 }

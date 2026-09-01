@@ -6,9 +6,10 @@ broadcasts — without going through the dashboard UI.
 
 > **Status:** stable. Authentication, scopes, rate limiting, the
 > messages / contacts / conversations / broadcasts endpoints,
-> WhatsApp groups, CRM contact groups, consents, and outbound event
-> [webhooks](#webhooks) all ship now. Campaigns and pipelines are
-> still on the Phase 2 remainder.
+> WhatsApp groups, CRM contact groups, consents, drip campaigns
+> (read / enroll / pause), pipelines / deals, and outbound event
+> [webhooks](#webhooks) all ship now. Baileys group-admin
+> (add / remove / promote) is still deferred.
 
 ## Authentication
 
@@ -58,6 +59,10 @@ it. Grant the minimum.
 | `consents:read`      | Read the marketing consent ledger        |
 | `contact-groups:read` | List and read CRM contact groups        |
 | `contact-groups:write` | Create and manage CRM contact groups   |
+| `campaigns:read`     | List and read drip campaigns + enrollments |
+| `campaigns:send`     | Enroll consented contacts; pause campaigns |
+| `pipelines:read`     | List and read pipelines, stages, and deals |
+| `pipelines:write`    | Create and manage pipelines, stages, and deals |
 
 A key with **no scopes** still authenticates and can call
 `GET /api/v1/me` — useful for verifying a key works.
@@ -362,6 +367,106 @@ Add or remove members. Scope: `contact-groups:write`. Body:
 `{ "contact_ids": ["…"] }`. Contacts must belong to this account.
 Smart groups return `400` — they cannot be mutated by hand.
 
+### `GET /api/v1/campaigns`
+
+List drip campaigns, newest first. Scope: `campaigns:read`. Paginated.
+Each row includes `enrollment_count` and `step_count` (not the step
+bodies).
+
+### `GET /api/v1/campaigns/{id}`
+
+Read one campaign with `steps`. Scope: `campaigns:read`. `404` for
+another account.
+
+### `GET /api/v1/campaigns/{id}/enrollments`
+
+List enrollments, newest first. Scope: `campaigns:read`. Paginated.
+
+### `POST /api/v1/campaigns/{id}/enroll`
+
+Enroll contacts. Scope: `campaigns:send`. Does **not** send WhatsApp
+— it writes enrollment rows. The existing campaign cron is the
+consented queue path and re-checks consent at fire time.
+
+Body is optional `{ "contact_ids": ["…"] }`. Omit `contact_ids` to
+enroll the campaign's contact-group audience. Cap: **1000** ids per
+request.
+
+**Consent gate:** opted-out contacts and anyone without an active
+consent row for the campaign channel are skipped. An empty eligible
+set is refused (`400`, `code: "no_consent"`) — this will not enroll
+the imported book. Group membership is not consent.
+
+A `draft` campaign becomes `active` when at least one consented
+contact is enrolled so cron can pick them up. A `paused` campaign
+stays paused (new rows are held).
+
+```bash
+curl -X POST https://your-crm.example.com/api/v1/campaigns/{id}/enroll \
+  -H "Authorization: Bearer wacrm_live_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "contact_ids": ["…"] }'
+```
+
+Response (202):
+
+```json
+{
+  "data": {
+    "enrolled": 1,
+    "skipped_no_consent": 12,
+    "already_enrolled": 0,
+    "campaign_status": "active"
+  }
+}
+```
+
+### `POST /api/v1/campaigns/{id}/pause`
+
+Pause a campaign and hold active enrollments (`next_send_at` cleared)
+so cron stops dequeuing. Scope: `campaigns:send`. Does not send.
+
+### `GET /api/v1/pipelines`
+
+List pipelines with stages, newest first. Scope: `pipelines:read`.
+Paginated.
+
+### `POST /api/v1/pipelines`
+
+Create a pipeline. Scope: `pipelines:write`. `name` is required;
+`stages` (`[{ "name", "position"?, "color"? }]`) is optional.
+Returns `201`.
+
+### `GET` / `PATCH` / `DELETE /api/v1/pipelines/{id}`
+
+Read, rename, or delete one pipeline. Scopes: `pipelines:read` /
+`pipelines:write`. Another account's pipeline returns `404`. Deleting
+a pipeline cascades its stages and deals.
+
+### `GET` / `POST /api/v1/pipelines/{id}/stages`
+
+List or add a stage. Scopes: `pipelines:read` / `pipelines:write`.
+Create body: `{ "name", "position"?, "color"? }`.
+
+### `GET /api/v1/deals`
+
+List deals, newest first. Scope: `pipelines:read`. Paginated.
+Filters: `?pipeline_id=`, `?contact_id=`, `?status=open|won|lost`.
+
+### `POST /api/v1/deals`
+
+Create a deal. Scope: `pipelines:write`. Required: `title`,
+`pipeline_id`, `stage_id` (stage must belong to that pipeline).
+Optional: `contact_id` (same account), `value`, `currency`, `notes`,
+`expected_close_date`, `status` (`open` / `won` / `lost`),
+`assigned_to`, `conversation_id`. Returns `201`.
+
+### `GET` / `PATCH` / `DELETE /api/v1/deals/{id}`
+
+Read, update, or delete one deal. Scopes: `pipelines:read` /
+`pipelines:write`. `PATCH` accepts the create fields except
+`pipeline_id`. Another account's deal returns `404`.
+
 ## Pagination
 
 Every list endpoint pages the same way. Request a page size with
@@ -475,8 +580,9 @@ internal targets are refused at delivery time.
 
 ## Roadmap
 
-Phase 2 foundation is shipped: WhatsApp groups (read + sync), CRM
-contact groups (CRUD + members), and consents (read). Still deferred:
-campaigns read/enroll/pause, pipelines/deals, and Baileys group-admin
-actions (add/remove/promote). Templates, flows, and a webhook
-delivery queue are not scheduled.
+Phase 2 REST is shipped: WhatsApp groups (read + sync), CRM contact
+groups (CRUD + members), consents (read), campaigns (read / enroll /
+pause), and pipelines / deals. Still deferred: Baileys group-admin
+actions (add / remove / promote) — the worker has no safe add/remove
+path today. Templates, flows, and a webhook delivery queue are not
+scheduled.

@@ -233,4 +233,51 @@ export class WacrmClient {
   ): Promise<Paginated<unknown>> {
     return this.list(`/contact-groups/${encodeURIComponent(id)}/members`, query);
   }
+
+  // --- Campaigns ----------------------------------------------------
+
+  listCampaigns(query: {
+    limit?: number;
+    cursor?: string;
+  }): Promise<Paginated<unknown>> {
+    return this.list('/campaigns', query);
+  }
+
+  getCampaign(id: string): Promise<{ data: unknown }> {
+    return this.request('GET', `/campaigns/${encodeURIComponent(id)}`);
+  }
+
+  listCampaignEnrollments(
+    id: string,
+    query: { limit?: number; cursor?: string },
+  ): Promise<Paginated<unknown>> {
+    return this.list(`/campaigns/${encodeURIComponent(id)}/enrollments`, query);
+  }
+
+  // --- Pipelines / deals --------------------------------------------
+
+  listPipelines(query: {
+    limit?: number;
+    cursor?: string;
+  }): Promise<Paginated<unknown>> {
+    return this.list('/pipelines', query);
+  }
+
+  getPipeline(id: string): Promise<{ data: unknown }> {
+    return this.request('GET', `/pipelines/${encodeURIComponent(id)}`);
+  }
+
+  listDeals(query: {
+    limit?: number;
+    cursor?: string;
+    pipeline_id?: string;
+    status?: string;
+    contact_id?: string;
+  }): Promise<Paginated<unknown>> {
+    return this.list('/deals', query);
+  }
+
+  getDeal(id: string): Promise<{ data: unknown }> {
+    return this.request('GET', `/deals/${encodeURIComponent(id)}`);
+  }
 }

@@ -135,7 +135,7 @@ Every story has acceptance criteria, **already built vs gap**, and a phase. IDs 
 | US-5 | As counsel / owner, I can prove WhatsApp is **not** a HIPAA channel and block PHI on send, notes, KB, and agent artifacts. | 3–4 | Partial (consent/STOP; deny-list + banners still open) |
 | US-6 | As a marketer, I can capture **prior express consent** on a landing (verbatim copy, IP, UA) before any marketing WA. | 3 | Built |
 | US-7 | As a lead, I can reply STOP and never get another marketing WA/email from this system. | 3 | Built (WA); email List-Unsubscribe still open |
-| US-8 | As an integrator, I can use **full REST + sync**: contact-groups, campaigns, wa-groups read/sync, consents, pipelines. | 2 | Partial (`/api/v1` now also has wa-groups read/sync, consents read, contact-groups CRUD; campaigns/pipelines still open) |
+| US-8 | As an integrator, I can use **full REST + sync**: contact-groups, campaigns, wa-groups read/sync, consents, pipelines. | 2 | Partial (`/api/v1` has wa-groups, consents, contact-groups, campaigns read/enroll/pause, pipelines/deals; Baileys group-admin still open) |
 | US-9 | As an operator, I can run **lite deploy** (web `:3100` + worker `:4000` + Redis + hosted Supabase) with health checks. | 1 | Docs + compose exist; production smoke still an operator task |
 | US-10 | As the concierge, I can delegate to Lead Qualifier, Compliance, Content, Booking, Analytics over A2A. | 4 | **Not built** |
 | US-11 | As Maya, I can run group-extract → select consented subset → delayed Baileys send → schedule (end-to-end example in ARCHITECTURE §6.2). | 1–3 | Partial (pieces exist; consent vs ~4,907 imports is the blocker) |
@@ -191,8 +191,8 @@ Every story has acceptance criteria, **already built vs gap**, and a phase. IDs 
 **REST (same auth: hashed API keys, scopes, envelope, 120 rpm)**
 
 - [x] `contact-groups` CRUD + members.
-- [ ] `campaigns` read/enroll/pause (`campaigns:read`, `campaigns:send`).
-- [ ] `pipelines` / `deals` read+write (minimal).
+- [x] `campaigns` read/enroll/pause (`campaigns:read`, `campaigns:send`).
+- [x] `pipelines` / `deals` read+write (minimal).
 - [x] `wa-groups` read + trigger sync; admin actions behind `groups:admin` (sync only; add/remove/promote still open).
 - [x] `consents` read.
 - [x] Update `docs/public-api.md`. MCP tools may wrap new read endpoints (writes still opt-in).
@@ -383,7 +383,7 @@ Find these **now**. Do not discover them on the first blast. This is not legal a
 2. QR test number + group sync counts: phones vs LID vs names vs email-empty (US-1).
 3. Broadcast preview: eligible vs ineligible among the existing book — **do not send** (US-2, US-11).
 4. PHI deny-list + inbox banner (US-5).
-5. Phase 2 remainder: campaigns + pipelines/deals REST (US-8). Group-admin (add/remove/promote) if Baileys is admin.
+5. Phase 2 remainder: campaigns + pipelines/deals REST (US-8) — **shipped**. Group-admin (add/remove/promote) still deferred (not in worker).
 6. Jitter policy settings + tests (US-2 gap).
 7. Phase 4: Compliance card wrapping `lib/consent.ts` + deny-list (US-10, US-4 keys).
 
