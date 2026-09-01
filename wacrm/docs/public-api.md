@@ -5,8 +5,10 @@ scripts and automations — send messages, manage contacts, launch
 broadcasts — without going through the dashboard UI.
 
 > **Status:** stable. Authentication, scopes, rate limiting, the
-> messages / contacts / conversations / broadcasts endpoints, and
-> outbound event [webhooks](#webhooks) all ship now.
+> messages / contacts / conversations / broadcasts endpoints,
+> WhatsApp groups, CRM contact groups, consents, and outbound event
+> [webhooks](#webhooks) all ship now. Campaigns and pipelines are
+> still on the Phase 2 remainder.
 
 ## Authentication
 
@@ -51,6 +53,11 @@ it. Grant the minimum.
 | `broadcasts:send`    | Launch broadcast campaigns               |
 | `webhooks:manage`    | Register and manage outbound webhooks    |
 | `a2a:invoke`         | Invoke in-app A2A agents (JSON-RPC + cards) |
+| `groups:read`        | List and read WhatsApp groups            |
+| `groups:admin`       | Trigger WhatsApp group sync              |
+| `consents:read`      | Read the marketing consent ledger        |
+| `contact-groups:read` | List and read CRM contact groups        |
+| `contact-groups:write` | Create and manage CRM contact groups   |
 
 A key with **no scopes** still authenticates and can call
 `GET /api/v1/me` — useful for verifying a key works.
@@ -264,6 +271,97 @@ Broadcast status + counts. Scope: `broadcasts:send`. `status` moves
 `sending` → `sent`; `delivered_count` / `read_count` keep climbing as
 Meta delivery webhooks arrive. `404` for another account's broadcast.
 
+### `GET /api/v1/wa-groups`
+
+List WhatsApp groups synced from the paired Baileys number, newest
+sync first. Scope: `groups:read`. Paginated on `synced_at`. Optional
+`?search=` matches `subject`. Importing a group is **not** consent.
+
+```json
+{
+  "data": [
+    {
+      "id": "…", "jid": "120@g.us", "subject": "Event group",
+      "description": null, "size": 400, "is_community": false,
+      "announce": false, "restrict": false, "synced_at": "…"
+    }
+  ],
+  "meta": { "next_cursor": "…" }
+}
+```
+
+### `GET /api/v1/wa-groups/{id}`
+
+Read one WhatsApp group. Scope: `groups:read`. `404` if it belongs
+to another account.
+
+### `GET /api/v1/wa-groups/{id}/participants`
+
+List participants (phone when resolved, LID-only otherwise).
+Scope: `groups:read`. Paginated. Each row includes `in_crm` when the
+phone already exists as a contact. LID-only members are `phone: null`
+and `in_crm: false` — they are not invented as contacts.
+
+### `POST /api/v1/wa-groups/sync`
+
+Enqueue a Baileys `syncGroups` job for this account. Scope:
+`groups:admin`. Returns `202 { "data": { "queued": true } }`. Does
+not grant marketing consent. Group admin (add/remove/promote) is
+not on this API yet.
+
+### `GET /api/v1/consents`
+
+List consent ledger rows, newest first. Scope: `consents:read`.
+Paginated. Filters: `?contact_id=`, `?channel=whatsapp|email`,
+`?status=active|revoked`. Read-only — this endpoint never grants or
+backfills consent.
+
+```json
+{
+  "data": [
+    {
+      "id": "…", "contact_id": "…", "phone_normalized": "+14155550123",
+      "channel": "whatsapp", "source": "landing",
+      "granted_at": "…", "revoked_at": null,
+      "consent_text": "I agree to WhatsApp updates", "created_at": "…"
+    }
+  ],
+  "meta": { "next_cursor": null }
+}
+```
+
+### `GET /api/v1/consents/{id}`
+
+Read one consent row. Scope: `consents:read`. `404` for another
+account.
+
+### `GET /api/v1/contact-groups`
+
+List CRM contact groups (audiences), newest first. Scope:
+`contact-groups:read`. Paginated. Each row includes `member_count`.
+
+### `POST /api/v1/contact-groups`
+
+Create a contact group. Scope: `contact-groups:write`. `name` is
+required; `description`, `color`, `is_smart`, and `smart_filter` are
+optional. Returns `201`.
+
+### `GET` / `PATCH` / `DELETE /api/v1/contact-groups/{id}`
+
+Read, update, or delete one group. Scopes: `contact-groups:read` /
+`contact-groups:write`. Another account's group returns `404`.
+
+### `GET /api/v1/contact-groups/{id}/members`
+
+List member `contact_id`s (smart groups resolve dynamically).
+Scope: `contact-groups:read`. Paginated.
+
+### `POST` / `DELETE /api/v1/contact-groups/{id}/members`
+
+Add or remove members. Scope: `contact-groups:write`. Body:
+`{ "contact_ids": ["…"] }`. Contacts must belong to this account.
+Smart groups return `400` — they cannot be mutated by hand.
+
 ## Pagination
 
 Every list endpoint pages the same way. Request a page size with
@@ -377,8 +475,8 @@ internal targets are refused at delivery time.
 
 ## Roadmap
 
-The public API now covers messaging, contacts, conversations,
-broadcasts, and outbound webhooks — the full scope of
-[#245](https://github.com/ArnasDon/wacrm/issues/245). Future ideas
-(deals/pipelines, templates, flows, a delivery queue for webhooks) are
-not yet scheduled.
+Phase 2 foundation is shipped: WhatsApp groups (read + sync), CRM
+contact groups (CRUD + members), and consents (read). Still deferred:
+campaigns read/enroll/pause, pipelines/deals, and Baileys group-admin
+actions (add/remove/promote). Templates, flows, and a webhook
+delivery queue are not scheduled.

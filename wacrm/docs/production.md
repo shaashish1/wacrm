@@ -2,7 +2,7 @@
 
 This repo can run as **Next.js web + worker + Redis**, with **Supabase hosted** (or local CLI for development). Production HTTP for the CRM is **port 3100** (`next start -p 3100`). The worker HTTP/Socket.IO port defaults to **4000**.
 
-**Doral / Windows copy-paste commands:** [LITE-DEPLOY.md](./LITE-DEPLOY.md).
+**Windows copy-paste commands:** [LITE-DEPLOY.md](./LITE-DEPLOY.md).
 
 ## Env
 

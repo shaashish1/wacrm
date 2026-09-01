@@ -1,16 +1,16 @@
-# Positioning & product brand — WhatsApp marketing CRM (above Doral)
+# Positioning & product brand — WhatsApp marketing CRM (above any one clinic)
 
 **Locked public brand: AudienceGate** (31 Aug 2026). See [brand-context.md](./brand-context.md).
 
 **31 Aug 2026** · Heuristic naming/positioning scores only · Basis: PRD, PLAN, ARCHITECTURE (brand-context now exists; no live customer interviews; web search for *obvious* collisions only)
 
-This is **not** trademark clearance, not a domain purchase, and not legal advice. Doral Healthcare and Wellness stays **tenant #1 / first clinic**, never the product name. Repo/code can stay `wacrm`; this brief is a public-facing brand only.
+This is **not** trademark clearance, not a domain purchase, and not legal advice. Tenant #1 (first wellness clinic) is never the product name. Repo/code can stay `wacrm`; this brief is a public-facing brand only.
 
 ---
 
 ## The one thing
 
-The product is a **WhatsApp marketing CRM** with two facts a competitor cannot honestly paste over: **group extract is not consent**, and **Compliance can refuse the send**. Name the product after those facts (or after the A2A mesh that enforces them). Do not name it after Doral, after “healthcare,” or after unofficial-WhatsApp swagger. WaCRM is a fine internal codename and a weak public brand.
+The product is a **WhatsApp marketing CRM** with two facts a competitor cannot honestly paste over: **group extract is not consent**, and **Compliance can refuse the send**. Name the product after those facts (or after the A2A mesh that enforces them). Do not name it after a clinic, after “healthcare,” or after unofficial-WhatsApp swagger. WaCRM is a fine internal codename and a weak public brand.
 
 ---
 
@@ -79,7 +79,7 @@ Scores are **marketing judgement** (sayability, feature fit, clinic-safe tone, c
 
 ### 1. Gatrel — default
 
-**Use this if** you want a short invented word that still *means* the product: Compliance is a gate; agents relay. It sits above any clinic. “Powered by Gatrel” on a Doral landing does not say Doral built a hospital OS.
+**Use this if** you want a short invented word that still *means* the product: Compliance is a gate; agents relay. It sits above any clinic. “Powered by Gatrel” on a clinic landing does not say the clinic built a hospital OS.
 
 Say it: *GAT-rəl* or *gay-TREL* — pick one and stick it in the brand pack.
 
@@ -97,14 +97,14 @@ Cost: longer logo, more generic, more `.com` pain. Keep a short spoken form (“
 
 Do not pick Nolven to sound “premium empty SaaS.” Pair it immediately with the category line above.
 
-**Sharp test contrast:** ship **Gatrel** vs **AudienceGate** as the only A/B on a one-pager. If five clinic-owner conversations need the category explained twice, you are in AudienceGate territory. If they repeat Gatrel without mixing it up with Doral, keep Gatrel.
+**Sharp test contrast:** ship **Gatrel** vs **AudienceGate** as the only A/B on a one-pager. If five clinic-owner conversations need the category explained twice, you are in AudienceGate territory. If they repeat Gatrel without mixing it up with the clinic, keep Gatrel.
 
 ---
 
 ## Do these first
 
 1. **Lock the public name vs the repo.** Effort S · Confidence H  
-   Public: one of the shortlist. Internal: `wacrm` stays. Never print “Doral CRM” on a second clinic’s UI.
+   Public: one of the shortlist. Internal: `wacrm` stays. Never print another clinic’s name as the product on a second tenant’s UI.
 
 2. **Buy the domain you can actually get, then stop hunting poetry.** Effort S · Confidence H  
    Pattern: `get[name].com` or `[name].ai` if `.com` is a 2009 parking lot (Nolven) or a steel shop (Gatrel Enterprises). Do not wait for a perfect `.com`.
@@ -123,7 +123,7 @@ Do not pick Nolven to sound “premium empty SaaS.” Pair it immediately with t
 
 ## What's already working
 
-- The docs already separate **customer** (Doral) from **product** (WaCRM + marketing + A2A). The naming job is mostly refusing to collapse that.
+- The docs already separate **tenant** (first wellness clinic) from **product** (AudienceGate + marketing + A2A). The naming job is mostly refusing to collapse that.
 - Consent ledger, STOP, landing opt-in, LID-vs-phone honesty, and “consult/intro/tour only” give you a real difference. You do not need a fake statistic to position.
 - Lite deploy and BYOK are operator-credible. They belong in the *how*, not in the brand name.
 
@@ -133,7 +133,7 @@ Do not pick Nolven to sound “premium empty SaaS.” Pair it immediately with t
 
 | Avoid | Why |
 | --- | --- |
-| **Doral**, Doral Health, Doral CRM, DoralOS | Tenant #1. The next clinic will not wear another clinic’s name. |
+| Any real clinic name as the product | Tenant #1. The next clinic will not wear another clinic’s name. |
 | **WaCRM** as the public brand | Reads as an internal repo (`shaashish1/wacrm`). Fine on GitHub. Weak on a landing and in a Meta Business review. |
 | **WhatsApp / WA-** in the mark | Meta trademark + looks unofficial. Category line can say WhatsApp; the logo should not. |
 | HIPAA, PHI, EHR, Pulse, Vital, Medi-, CareOS, ClinicCloud | Wrong category. Encryption ≠ HIPAA. No BAA. |
@@ -145,7 +145,7 @@ Do not pick Nolven to sound “premium empty SaaS.” Pair it immediately with t
 
 ## Cascade (when the name is picked)
 
-- Doral landings (`/p/[slug]`): “Powered by [Brand]” not “Doral Healthcare software.”
+- Clinic landings (`/p/[slug]`): “Powered by [Brand]” not “[Clinic] software.”
 - Settings / inbox banners: keep the WhatsApp-is-not-HIPAA fact; do not put HIPAA in the product name to “sound safe.”
 - Later: homepage, outbound to other clinics, A2A card `name` fields — route through `copy.md` once `brand-context.md` exists.
 
@@ -153,10 +153,10 @@ Do not pick Nolven to sound “premium empty SaaS.” Pair it immediately with t
 
 ## What I couldn't determine
 
-- Whether Ashish wants this to stay a **one-clinic operator tool** or become a **multi-clinic product**. v1 docs say one Doral account; the *name* should still survive a second tenant.
+- Whether Ashish wants this to stay a **one-clinic operator tool** or become a **multi-clinic product**. v1 docs say one tenant account; the *name* should still survive a second tenant.
 - Actual `.com` / `.ai` buy price and owner (Whois snippets only; no registrar checkout).
 - USPTO / EUIPO / common-law marks beyond obvious web hits. **Not a lawyer. Not clearance.**
-- How Doral’s counsel will react to “gate” language (good legally, maybe cold for wellness creatives).
+- How clinic counsel will react to “gate” language (good legally, maybe cold for wellness creatives).
 - Spoken pronunciation in Miami vs India operator calls — pick one IPA and test it out loud with Maya/Luis names.
 - No `brand-context.md` in the repo, `.claude/`, or `.agents/`. This brief used product docs only. **Un-contextualised on voice/proof.** I can draft `brand-context.md` from this file the moment you pick a name — say the word.
 
@@ -164,5 +164,5 @@ Do not pick Nolven to sound “premium empty SaaS.” Pair it immediately with t
 
 ## Proof we will not invent
 
-Named customer you may use when they agree: **Doral Healthcare and Wellness** (tenant, not brand).  
+Named customer you may use when they agree: none yet. Docs may use the invented demo **Cedarline Wellness** (tenant, not brand).  
 Metrics in the PRD (time-to-first-response, 100% consent-block audits) are **targets**, not results. Do not put them on a homepage as achieved. `[NEED: figure]` after go-live.

@@ -102,8 +102,21 @@ export function decodeCursor(value: string | null): Cursor | null {
  *   if (f) q = q.or(f)
  */
 export function keysetFilter(cursor: Cursor | null): string | null {
+  return keysetFilterOn(cursor, 'created_at');
+}
+
+/**
+ * Same keyset walk as {@link keysetFilter}, but on an arbitrary
+ * timestamp column (e.g. `synced_at` on `wa_groups`, which has no
+ * `created_at`). The cursor still encodes `(timestamp, id)`.
+ */
+export function keysetFilterOn(
+  cursor: Cursor | null,
+  timestampCol: string
+): string | null {
   if (!cursor) return null;
-  return `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`;
+  if (!/^[a-z_][a-z0-9_]*$/i.test(timestampCol)) return null;
+  return `${timestampCol}.lt.${cursor.createdAt},and(${timestampCol}.eq.${cursor.createdAt},id.lt.${cursor.id})`;
 }
 
 /**

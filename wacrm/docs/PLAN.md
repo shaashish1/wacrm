@@ -1,7 +1,7 @@
-# PLAN — Doral Healthcare and Wellness (AudienceGate, first customer)
+# PLAN — AudienceGate (tenant #1: first wellness clinic)
 
 **Product:** AudienceGate (public brand). Repo stays `wacrm`.  
-**Implements:** [PRD-doral-healthcare.md](./PRD-doral-healthcare.md)  
+**Implements:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Repo:** `shaashish1/wacrm` — this product only  
 **Operator:** Ashish  
@@ -20,7 +20,7 @@ User stories are **first-class** below (§1). Phases (§2) exist to sequence the
 2. **Compliance before volume.** Consent + STOP + PHI deny-list before Content agent or ads. Group extract ≠ permission to market.
 3. **MCP stays.** A2A is an adapter beside it, not a replacement (`docs/mcp.md` vs new `docs/a2a.md` in Phase 4).
 4. **Same-origin A2A in v1.** Cards + JSON-RPC on the Next.js app. No public agent registry.
-5. **Cloud API for Doral patient-facing sends** unless Ashish explicitly needs Baileys group admin / QR community number in production. Baileys delay + schedule stories apply to the QR path.
+5. **Cloud API for lead-facing marketing sends** unless Ashish explicitly needs Baileys group admin / QR community number in production. Baileys delay + schedule stories apply to the QR path.
 6. **Enterprise posture.** Observability, audit, RBAC, secrets, backup, runbooks, and an operator SLA — not a hobby bot.
 
 ---
@@ -31,7 +31,7 @@ Every story has acceptance criteria, **already built vs gap**, and a phase. IDs 
 
 ### US-1 — Connect WhatsApp via QR and extract group contacts
 
-**As a** Doral operator (Ashish) or marketer (Maya)  
+**As a** AudienceGate operator (Ashish) or marketer (Maya)  
 **I can** connect a WhatsApp number by scanning a QR code and extract contacts from **all** groups the number participates in  
 **so that** the CRM holds phone, profile name, email if available, and **Group ID** for later select / broadcast / schedule.
 
@@ -99,7 +99,7 @@ Every story has acceptance criteria, **already built vs gap**, and a phase. IDs 
 **Already built:** `scheduled_at` on insert, `/api/broadcasts/cron`, GitHub `scheduled-jobs.yml`, “Send now” vs schedule documented in production.md.  
 **Gaps:** no in-process scheduler; timezone UX may be browser-local; consent re-check at fire should be verified in tests; no heartbeat/alert; delayed **social** “posts” are out of scope (WhatsApp/email only).
 
-**Phase:** 1 (wire cron on Doral host) + test/hardening.
+**Phase:** 1 (wire cron on the production host) + test/hardening.
 
 ---
 
@@ -135,8 +135,8 @@ Every story has acceptance criteria, **already built vs gap**, and a phase. IDs 
 | US-5 | As counsel / owner, I can prove WhatsApp is **not** a HIPAA channel and block PHI on send, notes, KB, and agent artifacts. | 3–4 | Partial (consent/STOP; deny-list + banners still open) |
 | US-6 | As a marketer, I can capture **prior express consent** on a landing (verbatim copy, IP, UA) before any marketing WA. | 3 | Built |
 | US-7 | As a lead, I can reply STOP and never get another marketing WA/email from this system. | 3 | Built (WA); email List-Unsubscribe still open |
-| US-8 | As an integrator, I can use **full REST + sync**: contact-groups, campaigns, wa-groups read/sync, consents, pipelines. | 2 | Partial (`/api/v1` is me/messages/contacts/conversations/broadcasts/webhooks only) |
-| US-9 | As an operator, I can run **lite deploy** (web `:3100` + worker `:4000` + Redis + hosted Supabase) with health checks. | 1 | Docs + compose exist; Doral smoke still an operator task |
+| US-8 | As an integrator, I can use **full REST + sync**: contact-groups, campaigns, wa-groups read/sync, consents, pipelines. | 2 | Partial (`/api/v1` now also has wa-groups read/sync, consents read, contact-groups CRUD; campaigns/pipelines still open) |
+| US-9 | As an operator, I can run **lite deploy** (web `:3100` + worker `:4000` + Redis + hosted Supabase) with health checks. | 1 | Docs + compose exist; production smoke still an operator task |
 | US-10 | As the concierge, I can delegate to Lead Qualifier, Compliance, Content, Booking, Analytics over A2A. | 4 | **Not built** |
 | US-11 | As Maya, I can run group-extract → select consented subset → delayed Baileys send → schedule (end-to-end example in ARCHITECTURE §6.2). | 1–3 | Partial (pieces exist; consent vs ~4,907 imports is the blocker) |
 | US-12 | As owner, I can invite staff with RBAC (viewer/agent/admin/owner) and they cannot cross accounts (RLS). | — | Built |
@@ -157,11 +157,11 @@ Every story has acceptance criteria, **already built vs gap**, and a phase. IDs 
 - [x] PLAN + PRD in `docs/`.
 - [x] `docs/BASELINE.md` + architecture pointer.
 - [ ] Inventory sign-off: inbox, contacts, contact-groups, wa-groups sync/import, broadcasts, campaigns/email, automations, flows, pipelines, agents playground, MCP, `/api/v1`.
-- [ ] Decision log: Cloud API vs Baileys for Doral **patient-facing** sends (recommendation: Cloud API). QR/Baileys retained for group extract + community number (US-1, US-2).
+- [ ] Decision log: Cloud API vs Baileys for **lead-facing** marketing sends (recommendation: Cloud API). QR/Baileys retained for group extract + community number (US-1, US-2).
 
 **Out of scope:** feature work, merging other repos.  
 **Effort:** S  
-**Risk:** drift to omnichat. Mitigation: all Doral tickets target `wacrm` only.
+**Risk:** drift to omnichat. Mitigation: all product tickets target `wacrm` only.
 
 ---
 
@@ -190,12 +190,12 @@ Every story has acceptance criteria, **already built vs gap**, and a phase. IDs 
 
 **REST (same auth: hashed API keys, scopes, envelope, 120 rpm)**
 
-- [ ] `contact-groups` CRUD + members.
+- [x] `contact-groups` CRUD + members.
 - [ ] `campaigns` read/enroll/pause (`campaigns:read`, `campaigns:send`).
 - [ ] `pipelines` / `deals` read+write (minimal).
-- [ ] `wa-groups` read + trigger sync; admin actions behind `groups:admin`.
-- [ ] `consents` read.
-- [ ] Update `docs/public-api.md`. MCP tools may wrap new read endpoints (writes still opt-in).
+- [x] `wa-groups` read + trigger sync; admin actions behind `groups:admin` (sync only; add/remove/promote still open).
+- [x] `consents` read.
+- [x] Update `docs/public-api.md`. MCP tools may wrap new read endpoints (writes still opt-in).
 
 **Group admin + sync (Baileys; Cloud API groups are limited)**
 
@@ -205,7 +205,7 @@ Every story has acceptance criteria, **already built vs gap**, and a phase. IDs 
 - [ ] UI on `/wa-groups` + error if not admin.
 - [ ] Import remains **without** marketing consent (US-5 / US-6).
 
-If Doral is Cloud-API-only for sends, **group admin is deferred** and this phase is REST-only (shrink to **M**). QR extract (US-1) still needs a Baileys session even if marketing sends use Cloud API.
+If production sends are Cloud-API-only, **group admin is deferred** and this phase is REST-only (shrink to **M**). QR extract (US-1) still needs a Baileys session even if marketing sends use Cloud API.
 
 **Effort:** L (admin + REST) / M (REST only).
 
@@ -226,7 +226,7 @@ If Doral is Cloud-API-only for sends, **group admin is deferred** and this phase
 - [ ] **Re-permission program** for the existing imported book: do **not** backfill consent. Count eligible vs ineligible on the broadcast preview. Optional one-time email/SMS/in-clinic ask (not WhatsApp cold blast).
 
 **Effort:** L  
-**Critical path to first Doral blast:** 0 → 1 → 3.
+**Critical path to first marketing blast:** 0 → 1 → 3.
 
 ---
 
@@ -254,7 +254,7 @@ If Doral is Cloud-API-only for sends, **group admin is deferred** and this phase
 
 ### Phase 5 — Theme / UX polish
 
-**Goal:** Doral-looking landings and a calmer operator UI. No new backends.  
+**Goal:** Clinic-branded landings and a calmer operator UI. No new backends.  
 **Do not start** until P0 consent gates exist (Phase 3).  
 **Effort:** M
 
@@ -291,7 +291,7 @@ Find these **now**. Do not discover them on the first blast. This is not legal a
 | **Ban is not “fixed” by jitter** | Random delay reduces bot-shaped bursts; it does **not** make unofficial use compliant. | Document this on the broadcast UI. Never market “anti-ban guaranteed.” |
 | **No BAA for WhatsApp** | Meta does not offer a BAA for consumer WA, WA Business, or the Business Platform. Encryption ≠ HIPAA. | Product rule: marketing + generic scheduling only. No PHI. See PRD §6. UI banners. Escalate clinical to phone/portal. |
 | **HIPAA misunderstanding** | Staff think consent or encryption makes WA HIPAA. | Training + persistent banner. Counsel review. Do not claim HIPAA on this inbox. |
-| **TCPA / Florida telemarketing** | Doral is US wellness. Marketing WA needs **prior express consent**. Group membership is not consent. | Consent ledger + verbatim copy + IP/UA. STOP. No blast of imported group members. |
+| **TCPA / Florida telemarketing** | Tenant #1 is a US wellness clinic. Marketing WA needs **prior express consent**. Group membership is not consent. | Consent ledger + verbatim copy + IP/UA. STOP. No blast of imported group members. |
 | **~4,907 existing contacts** | Auto-upsert / import created CRM rows **without** `consents`. A send to “all contacts” would be empty (gate) or illegal if the gate were bypassed. | Keep the server gate. Preview: eligible vs ineligible. Re-permission off WA (email, in-clinic, landing). **Never backfill** consent. |
 | **Purchased / scraped lists** | Out of policy and high complaint risk. | Non-goal. Reject CSV without source attestation (P1). |
 | **Hosted Supabase + LLM = PII subprocessors** | Names, phones, emails leave the clinic boundary. | DPAs; no PHI in prompts; redact logs; document subprocessors in privacy policy. |
@@ -326,11 +326,11 @@ Find these **now**. Do not discover them on the first blast. This is not legal a
 | **Redis loss** | BullMQ jobs vanish if Redis is ephemeral. | Compose volume; Redis AOF if production; reconstruct from `send_queue` / recipient `pending` (exists in parts). Runbook: replay pending. |
 | **Worker restart mid-blast** | Duplicate or stuck recipients. | Jobs must be idempotent (recipient status). RateGovernor `firstSendSeen` is **in-memory** — first-send delay resets on process restart (acceptable). Daily count is in Postgres RPC. |
 | **Multi-worker** | Two Baileys sockets = fight / ban. | **Single worker** invariant until a session lock (Redis) is designed. Document it. |
-| **Multi-tenant isolation** | Schema is account-scoped + RLS. Product is **one Doral account**, not a SaaS marketplace. | Keep RLS tests. Do not build a self-serve tenant portal in v1. API keys are account-scoped. |
+| **Multi-tenant isolation** | Schema is account-scoped + RLS. Product is **one tenant account** in v1, not a SaaS marketplace. | Keep RLS tests. Do not build a self-serve tenant portal in v1. API keys are account-scoped. |
 | **Hosted Supabase quotas** | Sync of all groups + 5k+ contacts + messages can hit row/IO limits. | Batch 200–1000 (exists). Monitor dashboard. Upgrade plan before go-live. |
 | **Cron reliability** | GitHub Actions can skip or secret-miss; host crontab can die. | Dual note in LITE-DEPLOY. Heartbeat. Manual curl runbook. Optional later: worker-side due-job poll (still one process). |
 | **Windows Docker / nested npm** | Operator laptop is Windows. | `.npmrc` nested installs; webpack for `next dev`; production = `next start -p 3100`. See LITE-DEPLOY. |
-| **Schema grants** | Past incident: missing GRANTs → empty groups/contacts (migrations 051–053). | Apply **all** migrations in order. Never `db reset` on Doral. |
+| **Schema grants** | Past incident: missing GRANTs → empty groups/contacts (migrations 051–053). | Apply **all** migrations in order. Never `db reset` on the production project. |
 | **Backup / RPO** | Session files + Postgres + Redis. Lose session = re-QR. | Supabase PITR on; volume backup; secrets in a password manager not git. Quarterly restore drill (US-13). |
 | **Media / storage** | Broadcast images in Supabase storage. | Account-prefixed paths (exists). Caps; no clinical photos. |
 
@@ -379,14 +379,14 @@ Find these **now**. Do not discover them on the first blast. This is not legal a
 
 ## 5. Suggested next tickets (after this docs merge)
 
-1. Phase 1 compose + cron smoke on the Doral Supabase project (US-9, US-3).
+1. Phase 1 compose + cron smoke on the production Supabase project (US-9, US-3).
 2. QR test number + group sync counts: phones vs LID vs names vs email-empty (US-1).
 3. Broadcast preview: eligible vs ineligible among the existing book — **do not send** (US-2, US-11).
 4. PHI deny-list + inbox banner (US-5).
-5. Phase 2 REST: `wa-groups` read/sync + `consents` read (US-8).
+5. Phase 2 remainder: campaigns + pipelines/deals REST (US-8). Group-admin (add/remove/promote) if Baileys is admin.
 6. Jitter policy settings + tests (US-2 gap).
 7. Phase 4: Compliance card wrapping `lib/consent.ts` + deny-list (US-10, US-4 keys).
 
 ---
 
-*End of PLAN. Product rules: [PRD-doral-healthcare.md](./PRD-doral-healthcare.md). Diagrams: [ARCHITECTURE.md](./ARCHITECTURE.md).*
+*End of PLAN. Product rules: [PRD.md](./PRD.md). Diagrams: [ARCHITECTURE.md](./ARCHITECTURE.md).*

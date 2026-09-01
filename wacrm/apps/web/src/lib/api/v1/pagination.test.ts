@@ -4,6 +4,7 @@ import {
   encodeCursor,
   decodeCursor,
   keysetFilter,
+  keysetFilterOn,
   buildPage,
   DEFAULT_LIMIT,
   MAX_LIMIT,
@@ -89,6 +90,22 @@ describe('keysetFilter', () => {
     expect(keysetFilter({ createdAt: '2026-01-01T00:00:00Z', id: 'x' })).toBe(
       'created_at.lt.2026-01-01T00:00:00Z,and(created_at.eq.2026-01-01T00:00:00Z,id.lt.x)'
     );
+  });
+});
+
+describe('keysetFilterOn', () => {
+  it('uses the given timestamp column', () => {
+    expect(
+      keysetFilterOn({ createdAt: '2026-01-01T00:00:00Z', id: 'x' }, 'synced_at')
+    ).toBe(
+      'synced_at.lt.2026-01-01T00:00:00Z,and(synced_at.eq.2026-01-01T00:00:00Z,id.lt.x)'
+    );
+  });
+
+  it('rejects a non-identifier column name', () => {
+    expect(
+      keysetFilterOn({ createdAt: '2026-01-01T00:00:00Z', id: 'x' }, 'a;drop')
+    ).toBeNull();
   });
 });
 

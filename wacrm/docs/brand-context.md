@@ -72,7 +72,7 @@ None as achieved results. PRD targets (time-to-first-response, 100% consent-bloc
 
 Named customers we're allowed to name:
 
-**Doral Healthcare and Wellness** — **tenant #1 / first customer**, never the product name. Use only when they agree. On a Doral landing: clinic identity stays Doral; product line is “Powered by AudienceGate,” not “Doral Healthcare software.”
+None. Tenant #1 is the first wellness clinic (docs may use the invented demo name **Cedarline Wellness**). Do not name a real clinic as the product. Early drafts formerly referred to as Doral — do not use.
 
 Claims that need legal sign-off:
 
@@ -100,17 +100,17 @@ See do-not-use below. Also never **AG** as the brand.
 
 | | Product | Tenant #1 |
 | --- | --- | --- |
-| Name | **AudienceGate** | **Doral Healthcare and Wellness** |
-| Where it appears | App chrome, `<title>`, login, sidebar, README heading, landing *product* footer, A2A card product copy, public docs product line | Seed/clinic example, customer PRD/PLAN facts, Doral-scale book (~4,907), “Doral-Miami-leads,” operator deploy notes, landing *clinic* identity |
+| Name | **AudienceGate** | First wellness clinic (demo: **Cedarline Wellness**) |
+| Where it appears | App chrome, `<title>`, login, sidebar, README heading, landing *product* footer, A2A card product copy, public docs product line | Seed/clinic example, PRD/PLAN facts, imported book (~4,907), “miami-event-leads,” operator deploy notes, landing *clinic* identity |
 | Repo | `wacrm` stays internal | Not a repo name |
 
-v1 may be one Doral account. A second clinic must not see “Doral CRM.”
+v1 may be one tenant account. A second clinic must not see another clinic’s name in the product chrome.
 
 ## Do-not-use
 
 | Avoid | Why |
 | --- | --- |
-| **Doral**, Doral Health, **Doral CRM**, DoralOS as the product | Tenant #1. The next clinic will not wear another clinic’s name. |
+| Any real clinic name as the product (including early-draft clinic names) | Tenant #1 is not the mark. The next clinic will not wear another clinic’s name. |
 | **WaCRM** as the public brand | Internal repo / packages (`shaashish1/wacrm`, `@wacrm/*`, `wacrm_live_` keys). Fine on GitHub. Weak on a landing and in a Meta Business review. |
 | **WhatsApp / WA-** in the logo wordmark | Meta trademark + looks unofficial. Category line can say WhatsApp; the mark cannot. |
 | HIPAA, PHI-as-certification, EHR, Pulse, Vital, Medi-, CareOS, ClinicCloud | Wrong category. Encryption ≠ HIPAA. No BAA. |
@@ -138,6 +138,6 @@ Anything off-limits:
 
 ## Cascade (when you write copy)
 
-- Doral landings (`/p/[slug]`): clinic name/headline from the landing row; footer **Powered by AudienceGate**.
+- Clinic landings (`/p/[slug]`): clinic name/headline from the landing row; footer **Powered by AudienceGate**.
 - Settings / inbox: keep the WhatsApp-is-not-HIPAA *fact*; do not put HIPAA in the product name.
 - Later homepage, outbound, A2A `name` fields: route through this file (and `copy.md` when it exists).

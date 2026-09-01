@@ -1,18 +1,18 @@
-# PRD — Doral Healthcare and Wellness
+# PRD — AudienceGate
 
 **Product:** AudienceGate (WhatsApp campaign CRM + digital marketing + in-app A2A)  
-**Customer:** Doral Healthcare and Wellness (US wellness / clinic marketing) — tenant #1, not the product name  
+**First tenant:** tenant #1 — a US wellness clinic (demo name: Cedarline Wellness). Not the product name.  
 **Operator:** Ashish (data scientist; builds and runs the stack)  
 **Base repo:** `shaashish1/wacrm` — internal name; public brand is AudienceGate  
-**Status:** Planning only. No product features in this change.  
-**Date:** 2026-08-31  
-**Companions:** [PLAN-doral-healthcare.md](./PLAN-doral-healthcare.md) (user stories + challenges), [ARCHITECTURE.md](./ARCHITECTURE.md)
+**Status:** Living product spec.  
+**Date:** 2026-08-31 (tenant naming updated 2026-09-01)  
+**Companions:** [PLAN.md](./PLAN.md) (user stories + challenges), [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ---
 
 ## 1. Vision
 
-One self-hosted app for Doral: WhatsApp inbox and CRM, marketing campaigns with consent, and a small set of **in-app agents** that collaborate over the Linux Foundation **Agent2Agent (A2A)** protocol.
+One self-hosted app for the first wellness clinic: WhatsApp inbox and CRM, marketing campaigns with consent, and a small set of **in-app agents** that collaborate over the Linux Foundation **Agent2Agent (A2A)** protocol.
 
 Operators work in one UI. Agents talk to each other as agents (tasks, cards, discovery) — not as a pile of one-off webhooks. WhatsApp stays a **marketing and logistics** channel. It is **not** a clinical record or a HIPAA-covered messaging system.
 
@@ -20,7 +20,7 @@ Operators work in one UI. Agents talk to each other as agents (tasks, cards, dis
 
 ## 2. Problem
 
-Doral needs to:
+Tenant #1 needs to:
 
 1. Capture wellness leads (web, ads, events, WhatsApp) into one contact record.
 2. Follow up on WhatsApp and email without blasting people who opted out.
@@ -37,7 +37,7 @@ Today those jobs are split across AudienceGate (inbox, broadcasts, automations, 
 | Role | Who | Job |
 | --- | --- | --- |
 | Owner | Clinic principal / Ashish as operator | Brand, numbers, API keys, compliance gates, go-live |
-| Marketer | Doral marketing staff (or Ashish wearing this hat) | Campaigns, landings, UTMs, calendar, audiences |
+| Marketer | Clinic marketing staff (or Ashish wearing this hat) | Campaigns, landings, UTMs, calendar, audiences |
 | Agent (human) | Front-desk / receptionist | Inbox, assignment, notes, booking handoff |
 | Patient / lead | Prospect or existing wellness client | Opt-in, reply, STOP, book a consult — **not** receive clinical results on WhatsApp |
 
@@ -60,14 +60,14 @@ System actors (not humans): Lead Qualifier, Content, Broadcast Compliance, Booki
 - Not an EHR, practice-management system, or billing system.
 - Not a HIPAA-covered WhatsApp channel. No BAA with Meta for WhatsApp. **No PHI on WhatsApp.**
 - Do not merge `whatsapp-research`, `omnichat`, or a waapi-gateway. Reference patterns only (booking, consent UX).
-- Not a multi-tenant SaaS marketplace. One Doral account (team roles already exist).
+- Not a multi-tenant SaaS marketplace. One tenant account in v1 (team roles already exist).
 - Not Meta/Google **ads manager** in v1 (hooks + CAPI later — P2).
 - Not full clinical voice/STT pipeline (omnichat has this; do not port it).
 - Not replacing MCP with A2A. Both stay.
 
 ### 4.1 First-class operator stories (must ship as product)
 
-These are requirements, not backlog trivia. Full acceptance criteria live in [PLAN §1](./PLAN-doral-healthcare.md). HIPAA rule is unchanged: WhatsApp is **not** a BAA channel (§6).
+These are requirements, not backlog trivia. Full acceptance criteria live in [PLAN §1](./PLAN.md). HIPAA rule is unchanged: WhatsApp is **not** a BAA channel (§6).
 
 **US-1 — QR connect + extract all group contacts**  
 As a user I can connect WhatsApp via QR and extract contacts from **all** groups into our DB: **phone number**, **profile name**, **emails if available**, **Group ID**.
@@ -109,7 +109,7 @@ As a user I can configure per-account LLM keys for A2A work: **BYOK**, **encrypt
 Wants one Compose stack, hosted Supabase, measurable funnels, agents he can inspect (cards, tasks, traces). Will run cron, keys, and model spend. Needs red-team rules so an agent cannot dump a chart review into WhatsApp.
 
 **Maya — marketer**  
-Runs a “New patient wellness week” campaign. Needs a landing page, UTM, WhatsApp opt-in checkbox, audience = contact group “Doral-Miami-leads,” drip on email + WhatsApp template, content calendar for next 4 weeks. Will not write SQL.
+Runs a “New patient wellness week” campaign. Needs a landing page, UTM, WhatsApp opt-in checkbox, audience = contact group “miami-event-leads,” drip on email + WhatsApp template, content calendar for next 4 weeks. Will not write SQL.
 
 **Luis — front desk**  
 Lives in Inbox. Wants assignment, canned-safe replies, “book consult” without seeing SSN or diagnosis. Hands off when the lead asks about lab results.
@@ -163,9 +163,9 @@ US-1 (group extract) and US-2 (Baileys broadcast) do **not** change this. A QR-p
 
 ### 7.1 WhatsApp CRM — maximize existing AudienceGate
 
-Ship Doral on what already works. Do not rebuild.
+Ship tenant #1 on what already works. Do not rebuild.
 
-| Already in AudienceGate | Doral use | Gap to close later |
+| Already in AudienceGate | Clinic use | Gap to close later |
 | --- | --- | --- |
 | Shared inbox, assignment, notes | Front desk | PHI-safe note templates (P1) |
 | Contacts, tags, custom fields, CSV | Lead records | Custom-field **deny list** for SSN/MRN (P0) |
@@ -177,7 +177,7 @@ Ship Doral on what already works. Do not rebuild.
 | RateGovernor (250/day, warming, 1–3s jitter) | Baileys anti-burst for **US-2** | Delay policy UI; better distribution; not a ban warranty |
 | Email config + drip `/campaigns` | Nurture | Unsubscribe + consent parity with WhatsApp (P0) |
 | AI playground, KB, auto-reply, `/api/ai/config` | **US-4** BYOK keys (GCM / `ENCRYPTION_KEY`) | A2A specialists consume the same keys (Phase 4) |
-| MCP (`wacrm-mcp`) + `/api/v1` | Ashish / Cursor tools | **Full REST + sync** still planned (Phase 2): contact-groups, campaigns, wa-groups, consents, pipelines. Today: me, messages, contacts, conversations, broadcasts, webhooks |
+| MCP (`wacrm-mcp`) + `/api/v1` | Ashish / Cursor tools | Phase 2 foundation shipped: wa-groups read/sync, consents read, contact-groups CRUD. Still open: campaigns, pipelines, group-admin actions |
 | Roles: viewer < agent < admin < owner | Least privilege | Cannot disable consent; CSV export admin+ (confirm); agent capability flags (P1) |
 
 **Lite deploy (constraint):** `docker-compose.yml` = web `:3100` + worker `:4000` + Redis. Postgres/Auth = **hosted Supabase**. Cron via GitHub Actions or host crontab hitting existing `/api/broadcasts/cron`, `/api/campaigns/cron`, `/api/automations/cron`, `/api/flows/cron`. Socket.IO optional.
@@ -190,7 +190,7 @@ Reuse contacts, tags, contact groups, campaigns, broadcasts. Add what marketing 
 | --- | --- | --- |
 | **Lead object** (or contact + `lead_source` / stage) | P0 | Deduped on phone/email. Source: form, WhatsApp inbound, CSV, import from WA group |
 | **Consent ledger** | P0 | Channel (wa/email), source, timestamp, copy, revocation |
-| **Public landing pages** | P0 | Branded Doral page(s), form → contact + consent + UTM. Hosted on same Next.js app (`/p/[slug]`) |
+| **Public landing pages** | P0 | Clinic-branded page(s), form → contact + consent + UTM. Hosted on same Next.js app (`/p/[slug]`) |
 | **UTM + attribution** | P0 | `utm_source/medium/campaign/content/term` stored on lead; first-touch + last-touch |
 | **Campaigns (marketing)** | P0 | Tie existing drip + broadcasts to a marketing campaign id, landing, UTM pack |
 | **Content calendar** | P1 | Planned posts/sends (WhatsApp template, email, later social). Not an ads publisher |
@@ -307,7 +307,7 @@ All five are **in-app**. Each publishes a card. Orchestrator (inbox bot or Conci
 
 ## 9. Requirements
 
-### P0 — must have for Doral marketing go-live
+### P0 — must have for tenant #1 marketing go-live
 
 | ID | Requirement |
 | --- | --- |
@@ -328,14 +328,14 @@ All five are **in-app**. Each publishes a card. Orchestrator (inbox bot or Conci
 
 | ID | Requirement |
 | --- | --- |
-| P1-1 | **Full REST + sync** (still planned): contact-groups, campaigns, wa-groups read + trigger sync, deals/pipelines, consent, landings. |
+| P1-1 | **Full REST remainder**: campaigns, deals/pipelines, landings, Baileys group-admin. Foundation (wa-groups, consents, contact-groups) is shipped. |
 | P1-2 | WA **group admin** + durable contact↔Group ID lineage (not only tags) + reliable sync on Baileys. |
 | P1-3 | Content + Booking + Analytics agents on A2A (consume US-4 keys). |
 | P1-4 | Content calendar UI. |
 | P1-5 | Booking table + Google Calendar OAuth (optional) — generic consults only. |
 | P1-6 | A2A adapter documented next to MCP; JS SDK `@a2a-js/sdk` or thin in-house JSON-RPC. |
 | P1-7 | Log redaction; task/audit trail for agent decisions, consent, key rotate, QR pair, broadcast send. |
-| P1-8 | Doral theme (colors, logo, landing) — can slip to Phase 5 if brand pack late. |
+| P1-8 | Clinic theme (colors, logo, landing) — can slip to Phase 5 if brand pack late. |
 | P1-9 | Operator-configurable Baileys delay window + non-uniform jitter; cron heartbeat / SLA alert. |
 | P1-10 | Observability: structured logs, queue depth, session state; backup/restore runbook (session volume + Supabase PITR). |
 
@@ -375,7 +375,7 @@ Vanity follower counts are not success. **Consent integrity and no-PHI-on-WhatsA
 | Staff or agent puts PHI on WhatsApp | Deny-list + Compliance agent + training copy in UI; escalate path |
 | Meta/TCPA complaint | Consent ledger + STOP + template footers; no purchased lists |
 | **~4,907 imported contacts have no consent** | Keep server gate; preview eligible vs not; re-permission off WhatsApp; never backfill |
-| Baileys ban / unofficial API | Prefer Cloud API for Doral production marketing; Baileys for group extract + community number; RateGovernor; no “anti-ban guaranteed” |
+| Baileys ban / unofficial API | Prefer Cloud API for production marketing; Baileys for group extract + community number; RateGovernor; no “anti-ban guaranteed” |
 | LID-only participants / missing emails | Show “no phone”; do not invent E.164; email from landings/CSV; US-1 still succeeds with empty email |
 | Group size / sync load | Chunk writes; cap import-all; durable Group ID (Phase 2) |
 | Jitter too uniform / cron down | Configurable delay (P1-9); heartbeat; documented “waiting on scheduler” |
@@ -386,11 +386,11 @@ Vanity follower counts are not success. **Consent integrity and no-PHI-on-WhatsA
 | LLM exfil via KB or prompt | No clinical docs in KB; system prompt forbids PHI fields; artifact scan |
 | Hosted Supabase as BA | Legal: marketing CRM DPA/BAA with Supabase if they process PII; still **not** a WhatsApp HIPAA fix |
 | Dual-write MCP vs A2A | Writes only through existing services; agents never bypass Compliance for broadcasts |
-| Multi-tenant leak vs one Doral account | Keep RLS; API keys account-scoped; no public SaaS in v1 |
+| Multi-tenant leak vs one tenant account | Keep RLS; API keys account-scoped; no public SaaS in v1 |
 | Lite-deploy SLA | Health checks + operator RTO/RPO; do not claim multi-AZ HA |
 | Scope creep from omnichat (voice, Stripe, SDI) | Explicit non-merge; booking pattern only |
 
-Full register (legal, LID, Redis, SLA, runbooks): [PLAN §3](./PLAN-doral-healthcare.md).
+Full register (legal, LID, Redis, SLA, runbooks): [PLAN §3](./PLAN.md).
 
 ---
 
@@ -401,8 +401,8 @@ Full register (legal, LID, Redis, SLA, runbooks): [PLAN §3](./PLAN-doral-health
 - [ ] Consent recorded before first marketing WA
 - [ ] STOP / unsubscribe works on WA and email
 - [ ] Deny-list on contacts, notes, templates, KB, A2A artifacts
-- [ ] LLM keys BYOK; no training on Doral chats with vendors if contract forbids
-- [ ] Privacy policy + terms updated for Doral + AI + subprocessors
+- [ ] LLM keys BYOK; no training on tenant chats with vendors if contract forbids
+- [ ] Privacy policy + terms updated for the clinic + AI + subprocessors
 - [ ] Staff role: agents cannot disable Compliance
 - [ ] This PRD is **not** legal advice — clinic counsel reviews before go-live
 
@@ -437,7 +437,7 @@ A2A servers run **inside the web app** (Route Handlers). No new container unless
 
 ## 15. Open questions for Ashish
 
-1. Cloud API number vs Baileys for Doral production? **Recommendation:** Cloud API for patient-facing sends; Baileys for US-1 group extract and any community QR number (US-2 delay applies there).
+1. Cloud API number vs Baileys for production? **Recommendation:** Cloud API for lead-facing marketing sends; Baileys for US-1 group extract and any community QR number (US-2 delay applies there).
 2. Google Calendar in P1 or paper/phone booking until then?
 3. Counsel sign-off date before first marketing blast — especially the ~4,907 imported contacts (no consent).
 4. Brand tokens (hex, logo) for Phase 5.
@@ -446,4 +446,4 @@ A2A servers run **inside the web app** (Route Handlers). No new container unless
 
 ---
 
-*End of PRD. Implementation sequence is in PLAN-doral-healthcare.md.*
+*End of PRD. Implementation sequence is in PLAN.md.*

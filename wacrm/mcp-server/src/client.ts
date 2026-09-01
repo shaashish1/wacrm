@@ -176,4 +176,61 @@ export class WacrmClient {
   getBroadcast(id: string): Promise<{ data: unknown }> {
     return this.request('GET', `/broadcasts/${encodeURIComponent(id)}`);
   }
+
+  // --- WhatsApp groups ----------------------------------------------
+
+  listWaGroups(query: {
+    limit?: number;
+    cursor?: string;
+    search?: string;
+  }): Promise<Paginated<unknown>> {
+    return this.list('/wa-groups', query);
+  }
+
+  getWaGroup(id: string): Promise<{ data: unknown }> {
+    return this.request('GET', `/wa-groups/${encodeURIComponent(id)}`);
+  }
+
+  listWaGroupParticipants(
+    id: string,
+    query: { limit?: number; cursor?: string },
+  ): Promise<Paginated<unknown>> {
+    return this.list(`/wa-groups/${encodeURIComponent(id)}/participants`, query);
+  }
+
+  // --- Consents -----------------------------------------------------
+
+  listConsents(query: {
+    limit?: number;
+    cursor?: string;
+    contact_id?: string;
+    channel?: string;
+    status?: string;
+  }): Promise<Paginated<unknown>> {
+    return this.list('/consents', query);
+  }
+
+  getConsent(id: string): Promise<{ data: unknown }> {
+    return this.request('GET', `/consents/${encodeURIComponent(id)}`);
+  }
+
+  // --- Contact groups -----------------------------------------------
+
+  listContactGroups(query: {
+    limit?: number;
+    cursor?: string;
+  }): Promise<Paginated<unknown>> {
+    return this.list('/contact-groups', query);
+  }
+
+  getContactGroup(id: string): Promise<{ data: unknown }> {
+    return this.request('GET', `/contact-groups/${encodeURIComponent(id)}`);
+  }
+
+  listContactGroupMembers(
+    id: string,
+    query: { limit?: number; cursor?: string },
+  ): Promise<Paginated<unknown>> {
+    return this.list(`/contact-groups/${encodeURIComponent(id)}/members`, query);
+  }
 }

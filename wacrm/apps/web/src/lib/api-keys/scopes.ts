@@ -22,6 +22,11 @@ export const API_SCOPES = [
   'broadcasts:send',
   'webhooks:manage',
   'a2a:invoke',
+  'groups:read',
+  'groups:admin',
+  'consents:read',
+  'contact-groups:read',
+  'contact-groups:write',
 ] as const;
 
 export type ApiScope = (typeof API_SCOPES)[number];
@@ -36,6 +41,11 @@ export const SCOPE_DESCRIPTIONS: Record<ApiScope, string> = {
   'broadcasts:send': 'Launch broadcast campaigns',
   'webhooks:manage': 'Register and manage outbound event webhooks',
   'a2a:invoke': 'Invoke in-app A2A agents (cards + JSON-RPC)',
+  'groups:read': 'List and read WhatsApp groups and participants',
+  'groups:admin': 'Trigger WhatsApp group sync (and future admin actions)',
+  'consents:read': 'List and read marketing consent ledger rows',
+  'contact-groups:read': 'List and read CRM contact groups and members',
+  'contact-groups:write': 'Create, update, and manage CRM contact groups',
 };
 
 /** Type-narrow an unknown value into a valid `ApiScope`. */

@@ -2,11 +2,11 @@
 
 **Repo:** `shaashish1/wacrm`  
 **Constraint:** 3 Compose containers + hosted Supabase. No extra runtimes.  
-**Companions:** [BASELINE.md](./BASELINE.md), [production.md](./production.md), [LITE-DEPLOY.md](./LITE-DEPLOY.md), [mcp.md](./mcp.md), [PLAN-doral-healthcare.md](./PLAN-doral-healthcare.md), [PRD-doral-healthcare.md](./PRD-doral-healthcare.md)
+**Companions:** [BASELINE.md](./BASELINE.md), [production.md](./production.md), [LITE-DEPLOY.md](./LITE-DEPLOY.md), [mcp.md](./mcp.md), [PLAN.md](./PLAN.md), [PRD.md](./PRD.md)
 
-**Public product:** AudienceGate. **First customer / tenant #1:** Doral Healthcare and Wellness (not the product name). Repo stays `wacrm`.
+**Public product:** AudienceGate. **First tenant:** tenant #1 / first wellness clinic (demo: Cedarline Wellness — not the product name). Repo stays `wacrm`.
 
-This file describes the **chosen** stack and the **intended** control paths. It does not implement product code. Enterprise user stories live in the [PLAN](./PLAN-doral-healthcare.md) and [PRD](./PRD-doral-healthcare.md).
+This file describes the **chosen** stack and the **intended** control paths. It does not implement product code. Enterprise user stories live in the [PLAN](./PLAN.md) and [PRD](./PRD.md).
 
 ---
 
@@ -219,11 +219,11 @@ flowchart LR
 
 ---
 
-## 6. Example use cases (Doral Healthcare)
+## 6. Example use cases (first wellness clinic)
 
 These are the same product, not a second stack.
 
-### 6.1 Wellness-week marketing (Cloud API preferred for patient-facing)
+### 6.1 Wellness-week marketing (Cloud API preferred for lead-facing sends)
 
 Maya launches “New patient wellness week.” Landing `/p/wellness-week` captures name, phone, unchecked-by-default WhatsApp opt-in, UTM. Consent row is written. Audience = contact group ∩ active WhatsApp consent ∩ not `opted_out`. Broadcast uses a Meta **template** with STOP footer. Cloud API is the production send path. WhatsApp copy is generic (“intro consult,” “tour”) — no diagnoses, labs, or MRNs. Clinical questions escalate to phone / in-clinic intake.
 
@@ -231,7 +231,7 @@ Maya launches “New patient wellness week.” Landing `/p/wellness-week` captur
 
 Ashish pairs a **community / events** WhatsApp number via QR (Settings). The worker auto-syncs every participating group. Participants become CRM contacts: phone (when resolved), profile name (when known), email **if later available**, and Group ID (participant row + `WA Group:` tag).
 
-Maya opens `/wa-groups`, reviews a 400-person event group, imports or uses auto-upserted phones, and **does not blast the list**. Existing imported contacts (on the order of **~4,907** in the current Doral-scale book) have **no marketing consent**. She builds an audience from people who later opted in on a landing, or she runs a lawful re-permission campaign off a HIPAA-safe / TCPA-safe channel.
+Maya opens `/wa-groups`, reviews a 400-person event group, imports or uses auto-upserted phones, and **does not blast the list**. Existing imported contacts (on the order of **~4,907** in the current tenant book) have **no marketing consent**. She builds an audience from people who later opted in on a landing, or she runs a lawful re-permission campaign off a HIPAA-safe / TCPA-safe channel.
 
 She composes a broadcast, sets a **schedule** (`scheduled_at`), and the Baileys path applies **random delay** via `RateGovernor` so fan-out is not a bot-shaped burst. Cron must be alive or the job sits in `scheduled`.
 
@@ -274,7 +274,7 @@ v1 A2A is **same-origin** inside the web app (`apps/web/src/lib/a2a/`, cards at 
 | Broadcast select + `scheduled_at` | Built | UI + `/api/broadcasts/cron` |
 | RateGovernor jitter / daily cap | Built | `apps/worker/src/rate-governor.ts` |
 | BYOK LLM keys encrypted | Built | `/api/ai/config`, `ai_configs` |
-| Full `/api/v1` (groups, campaigns, consents, pipelines) | **Planned** | Phase 2 — today: me, messages, contacts, conversations, broadcasts, webhooks |
+| Full `/api/v1` (groups, campaigns, consents, pipelines) | **Partial** | Phase 2: wa-groups read/sync, consents read, contact-groups CRUD. Campaigns / pipelines / group-admin still open |
 | In-process scheduler (no GitHub/cron) | **Planned** | Cron remains an external pinger |
 | Configurable / higher-quality delay distribution | Built | Broadcast + account min/max seconds; RateGovernor uses payload/account |
 | A2A agents + cards + task store | Built (five agents) | Compliance, Qualifier, Content, Booking, Analytics; `docs/a2a.md` |
@@ -305,4 +305,4 @@ v1 A2A is **same-origin** inside the web app (`apps/web/src/lib/a2a/`, cards at 
 
 ---
 
-*End of ARCHITECTURE. Product rules: [PRD-doral-healthcare.md](./PRD-doral-healthcare.md). Stories and challenges: [PLAN-doral-healthcare.md](./PLAN-doral-healthcare.md).*
+*End of ARCHITECTURE. Product rules: [PRD.md](./PRD.md). Stories and challenges: [PLAN.md](./PLAN.md).*

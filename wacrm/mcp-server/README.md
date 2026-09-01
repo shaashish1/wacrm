@@ -77,6 +77,14 @@ when their guard is set.
 | `get_conversation`   | read      | `conversations:read` | Read one conversation                           |
 | `list_messages`      | read      | `messages:read`      | List a conversation's messages                  |
 | `get_broadcast`      | read      | `broadcasts:send`    | Poll a broadcast's delivery status              |
+| `list_wa_groups`     | read      | `groups:read`        | List WhatsApp groups (paginated)                |
+| `get_wa_group`       | read      | `groups:read`        | Read one WhatsApp group                         |
+| `list_wa_group_participants` | read | `groups:read`     | List a WhatsApp group's participants            |
+| `list_consents`      | read      | `consents:read`      | List consent ledger rows                        |
+| `get_consent`        | read      | `consents:read`      | Read one consent row                            |
+| `list_contact_groups`| read      | `contact-groups:read`| List CRM contact groups                         |
+| `get_contact_group`  | read      | `contact-groups:read`| Read one contact group                          |
+| `list_contact_group_members` | read | `contact-groups:read` | List a contact group's member ids          |
 | `send_message`       | write     | `messages:send`      | Send a WhatsApp message (text/template/media)   |
 | `create_contact`     | write     | `contacts:write`     | Create (find-or-create) a contact               |
 | `update_contact`     | write     | `contacts:write`     | Update a contact / replace its tags             |

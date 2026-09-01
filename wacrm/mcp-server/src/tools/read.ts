@@ -124,4 +124,126 @@ export function registerReadTools(server: McpServer, client: WacrmClient): void 
     },
     handle(async ({ id }) => jsonResult(await client.getBroadcast(id))),
   );
+
+  server.registerTool(
+    'list_wa_groups',
+    {
+      title: 'List WhatsApp groups',
+      description:
+        'List WhatsApp groups synced from the paired number. Optional search matches the group subject. Paginated. Importing a group is not marketing consent.',
+      inputSchema: {
+        search: z.string().optional().describe('Free-text search over group subject.'),
+        limit: z.number().int().min(1).max(100).optional().describe('Page size, 1–100 (default 50).'),
+        cursor: z.string().optional().describe('Opaque pagination cursor.'),
+      },
+      annotations: { ...READ_ONLY, title: 'List WhatsApp groups' },
+    },
+    handle(async (args) => jsonResult(await client.listWaGroups(args))),
+  );
+
+  server.registerTool(
+    'get_wa_group',
+    {
+      title: 'Get WhatsApp group',
+      description: 'Read a single WhatsApp group by id.',
+      inputSchema: {
+        id: z.string().describe('WhatsApp group id.'),
+      },
+      annotations: { ...READ_ONLY, title: 'Get WhatsApp group' },
+    },
+    handle(async ({ id }) => jsonResult(await client.getWaGroup(id))),
+  );
+
+  server.registerTool(
+    'list_wa_group_participants',
+    {
+      title: 'List WhatsApp group participants',
+      description:
+        'List participants of a WhatsApp group. LID-only members have no phone and are not invented as contacts. Paginated.',
+      inputSchema: {
+        group_id: z.string().describe('WhatsApp group id.'),
+        limit: z.number().int().min(1).max(100).optional().describe('Page size, 1–100 (default 50).'),
+        cursor: z.string().optional().describe('Opaque pagination cursor.'),
+      },
+      annotations: { ...READ_ONLY, title: 'List WhatsApp group participants' },
+    },
+    handle(async ({ group_id, limit, cursor }) =>
+      jsonResult(await client.listWaGroupParticipants(group_id, { limit, cursor })),
+    ),
+  );
+
+  server.registerTool(
+    'list_consents',
+    {
+      title: 'List consents',
+      description:
+        'List marketing consent ledger rows. Filter by contact, channel (whatsapp/email), or status (active/revoked). Read-only — never grants or backfills consent.',
+      inputSchema: {
+        contact_id: z.string().optional().describe('Only consents for this contact.'),
+        channel: z.enum(['whatsapp', 'email']).optional().describe('Consent channel.'),
+        status: z.enum(['active', 'revoked']).optional().describe('Active (not revoked) or revoked.'),
+        limit: z.number().int().min(1).max(100).optional().describe('Page size, 1–100 (default 50).'),
+        cursor: z.string().optional().describe('Opaque pagination cursor.'),
+      },
+      annotations: { ...READ_ONLY, title: 'List consents' },
+    },
+    handle(async (args) => jsonResult(await client.listConsents(args))),
+  );
+
+  server.registerTool(
+    'get_consent',
+    {
+      title: 'Get consent',
+      description: 'Read a single consent ledger row by id.',
+      inputSchema: {
+        id: z.string().describe('Consent id.'),
+      },
+      annotations: { ...READ_ONLY, title: 'Get consent' },
+    },
+    handle(async ({ id }) => jsonResult(await client.getConsent(id))),
+  );
+
+  server.registerTool(
+    'list_contact_groups',
+    {
+      title: 'List contact groups',
+      description: 'List CRM contact groups (audiences), newest first. Paginated.',
+      inputSchema: {
+        limit: z.number().int().min(1).max(100).optional().describe('Page size, 1–100 (default 50).'),
+        cursor: z.string().optional().describe('Opaque pagination cursor.'),
+      },
+      annotations: { ...READ_ONLY, title: 'List contact groups' },
+    },
+    handle(async (args) => jsonResult(await client.listContactGroups(args))),
+  );
+
+  server.registerTool(
+    'get_contact_group',
+    {
+      title: 'Get contact group',
+      description: 'Read a single CRM contact group by id, including member_count.',
+      inputSchema: {
+        id: z.string().describe('Contact group id.'),
+      },
+      annotations: { ...READ_ONLY, title: 'Get contact group' },
+    },
+    handle(async ({ id }) => jsonResult(await client.getContactGroup(id))),
+  );
+
+  server.registerTool(
+    'list_contact_group_members',
+    {
+      title: 'List contact group members',
+      description: 'List contact ids in a CRM contact group (smart groups resolve dynamically). Paginated.',
+      inputSchema: {
+        group_id: z.string().describe('Contact group id.'),
+        limit: z.number().int().min(1).max(100).optional().describe('Page size, 1–100 (default 50).'),
+        cursor: z.string().optional().describe('Opaque pagination cursor.'),
+      },
+      annotations: { ...READ_ONLY, title: 'List contact group members' },
+    },
+    handle(async ({ group_id, limit, cursor }) =>
+      jsonResult(await client.listContactGroupMembers(group_id, { limit, cursor })),
+    ),
+  );
 }
