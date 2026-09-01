@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { copyHasStopFooter, hasPhi, scanPhi } from './phi';
+import { copyHasStopFooter, hasPhi, scanPhi, scanPhiMany } from './phi';
 
 describe('scanPhi', () => {
   it('flags SSN and clinical terms', () => {
@@ -11,6 +11,15 @@ describe('scanPhi', () => {
     expect(hasPhi('We have an opening Tue 10:00 for a consult. Reply STOP')).toBe(
       false,
     );
+  });
+});
+
+describe('scanPhiMany', () => {
+  it('unions hits across fields', () => {
+    expect(scanPhiMany('ok', 'SSN 123-45-6789', 'MRI follow-up')).toEqual(
+      expect.arrayContaining(['ssn', 'diagnosis']),
+    );
+    expect(scanPhiMany('consult Tuesday', null, '')).toEqual([]);
   });
 });
 

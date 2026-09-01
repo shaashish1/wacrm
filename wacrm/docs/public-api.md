@@ -9,8 +9,9 @@ broadcasts — without going through the dashboard UI.
 > WhatsApp groups, CRM contact groups, consents, drip campaigns
 > (create / update / read / enroll / pause / resume), pipelines /
 > deals, landing pages, and outbound event [webhooks](#webhooks)
-> all ship now. Baileys group-admin (add / remove / promote) and a
-> durable webhook delivery queue are still deferred.
+> (including a durable delivery queue with retry-with-backoff)
+> all ship now. Baileys group-admin (add / remove / promote) is
+> still deferred.
 
 ## Authentication
 
@@ -91,6 +92,7 @@ may be reworded.
 | 403    | `forbidden`    | Valid key, but missing the required scope        |
 | 429    | `rate_limited` | Per-key rate limit exceeded                      |
 | 400    | `bad_request`  | Malformed input                                  |
+| 400    | `phi_denied`   | Notes or other free text looked like PHI         |
 | 404    | `not_found`    | No such resource                                 |
 | 500    | `internal`     | Server error                                     |
 
@@ -538,13 +540,14 @@ Create a deal. Scope: `pipelines:write`. Required: `title`,
 `pipeline_id`, `stage_id` (stage must belong to that pipeline).
 Optional: `contact_id` (same account), `value`, `currency`, `notes`,
 `expected_close_date`, `status` (`open` / `won` / `lost`),
-`assigned_to`, `conversation_id`. Returns `201`.
+`assigned_to`, `conversation_id`. Returns `201`. `notes` is scanned
+with the PHI deny-list (`400` `phi_denied` if it looks clinical).
 
 ### `GET` / `PATCH` / `DELETE /api/v1/deals/{id}`
 
 Read, update, or delete one deal. Scopes: `pipelines:read` /
 `pipelines:write`. `PATCH` accepts the create fields except
-`pipeline_id`. Another account's deal returns `404`.
+`pipeline_id`. `notes` is PHI-scanned. Another account's deal returns `404`.
 
 ## Pagination
 
@@ -567,8 +570,9 @@ last page.
 ## Webhooks
 
 Rather than polling, register an endpoint and AudienceGate will POST to it when
-things happen in your account. **Migration required:** apply
-`supabase/migrations/028_webhook_endpoints.sql`.
+things happen in your account. **Migrations required:** apply
+`supabase/migrations/028_webhook_endpoints.sql` and
+`supabase/migrations/063_webhook_deliveries.sql` (queue + claim RPC).
 
 ### Events
 
@@ -640,17 +644,22 @@ const ok = crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1));
 
 ### Delivery semantics
 
-Delivery is **best-effort**: a single attempt per event with a short
-timeout, and **redirects are not followed**. `message.status_updated`
-covers messages AudienceGate stores (inbox + API sends), not broadcast-only
-sends, and — because providers re-send and re-order status callbacks —
-the same status may arrive more than once or out of order; **dedupe on
-`id` and don't assume ordering**. Each consecutive failure increments
-`failure_count`; after enough consecutive failures the endpoint is
-auto-disabled (`is_active: false`) — re-enable it with `PATCH` (which
-resets the counter). Durable retry-with-backoff (a delivery queue) is a
-future enhancement; today, treat missed deliveries as possible and
-reconcile with the read endpoints when it matters.
+Delivery is **at-least-once** with a durable queue (`webhook_deliveries`,
+migration `063_webhook_deliveries.sql`). Each subscribed endpoint gets
+one row; the worker and `GET/POST /api/webhooks/cron` (`CRON_SECRET`)
+claim due rows with `SKIP LOCKED` and POST with a short timeout.
+**Redirects are not followed.** Failures retry with exponential backoff
+(2s … 5 min cap, 8 attempts). Each retry re-signs with a fresh
+`t=` timestamp but keeps the same body `id` — **dedupe on `id`**.
+SSRF / decrypt failures are permanent (not retried).
+
+`message.status_updated` covers messages AudienceGate stores (inbox +
+API sends), not broadcast-only sends, and — because providers re-send
+and re-order status callbacks — the same status may arrive more than
+once or out of order; don't assume ordering. Each consecutive failure
+increments `failure_count`; after enough consecutive failures the
+endpoint is auto-disabled (`is_active: false`) — re-enable it with
+`PATCH` (which resets the counter).
 
 **Target restrictions (SSRF).** The `url` must be `https://` and must
 resolve to a public address — requests to `localhost`, private/RFC1918
@@ -661,7 +670,8 @@ internal targets are refused at delivery time.
 
 Phase 2 REST is shipped: WhatsApp groups (read + sync), CRM contact
 groups (CRUD + members), consents (read), campaigns (create / update /
-read / enroll / pause / resume), pipelines / deals, and landing pages.
-Still deferred: Baileys group-admin actions (add / remove / promote)
-— the worker has no safe add/remove path today. Templates, flows, and
-a webhook delivery queue are not scheduled.
+read / enroll / pause / resume), pipelines / deals, landing pages, and
+the outbound webhook delivery queue (retry-with-backoff). Still
+deferred: Baileys group-admin actions (add / remove / promote) — the
+worker has no safe add/remove path today. Templates and flows are not
+on `/api/v1`.

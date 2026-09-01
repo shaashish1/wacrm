@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const BROADCASTS_CRON_KEY = 'broadcasts_cron';
+export const WEBHOOKS_CRON_KEY = 'webhooks_cron';
 
 export async function touchCronHeartbeat(
   db: SupabaseClient,

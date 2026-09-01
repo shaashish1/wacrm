@@ -27,6 +27,16 @@ export function hasPhi(text: string | null | undefined): boolean {
   return scanPhi(text).length > 0;
 }
 
+/** Merge deny-list hits across several fields (notes, KB title+body). */
+export function scanPhiMany(
+  ...texts: Array<string | null | undefined>
+): string[] {
+  return [...new Set(texts.flatMap((t) => scanPhi(t)))];
+}
+
+export const PHI_REFUSE_MESSAGE =
+  'This text looks like clinical or identity data. WhatsApp and this CRM are not HIPAA channels — do not store PHI here.';
+
 export function copyHasStopFooter(text: string | null | undefined): boolean {
   if (!text) return false;
   return /\b(stop|unsubscribe|opt[ -]?out)\b/i.test(text);

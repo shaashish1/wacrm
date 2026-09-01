@@ -11,6 +11,7 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
 import { createClient } from '@supabase/supabase-js';
 import { QueueProcessor } from './queue-processor';
 import { SendQueueDrainer } from './send-queue-drainer';
+import { WebhookDeliveryDrainer } from './webhook-delivery-drainer';
 import { BaileysProvider } from './providers/baileys-provider';
 import { startWebhookDispatcherWorker, dispatchToWebhook, dispatchStatusToWebhook } from './webhook-dispatcher';
 import { httpServer, io } from './socket';
@@ -27,6 +28,7 @@ console.log('Worker service starting up...');
 let provider: BaileysProvider;
 let processor: QueueProcessor;
 let sendQueueDrainer: SendQueueDrainer;
+let webhookDeliveryDrainer: WebhookDeliveryDrainer;
 let webhookWorker: any;
 
 async function main() {
@@ -115,6 +117,9 @@ async function main() {
   );
   sendQueueDrainer.start();
 
+  webhookDeliveryDrainer = new WebhookDeliveryDrainer();
+  webhookDeliveryDrainer.start();
+
   // Start Webhook Dispatcher
   webhookWorker = startWebhookDispatcherWorker();
   
@@ -166,6 +171,7 @@ async function shutdown(signal: string) {
   console.log(`\n[Worker] Received ${signal}, shutting down gracefully...`);
   try {
     if (sendQueueDrainer) await sendQueueDrainer.stop();
+    if (webhookDeliveryDrainer) await webhookDeliveryDrainer.stop();
     if (processor) await processor.stop();
     if (webhookWorker) await webhookWorker.close();
     if (provider) await provider.closeAll();

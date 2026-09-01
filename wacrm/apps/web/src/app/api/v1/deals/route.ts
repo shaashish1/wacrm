@@ -18,6 +18,7 @@ import {
   parseDealStatus,
   serializeDeal,
 } from '@/lib/api/v1/pipelines';
+import { PHI_REFUSE_MESSAGE, scanPhi } from '@/lib/a2a/phi';
 
 export async function GET(request: Request) {
   try {
@@ -141,6 +142,14 @@ export async function POST(request: Request) {
       return fail('bad_request', "'value' must be a non-negative number", 400);
     }
 
+    const notes = typeof body.notes === 'string' ? body.notes : null;
+    if (notes) {
+      const hits = scanPhi(notes);
+      if (hits.length > 0) {
+        return fail('phi_denied', PHI_REFUSE_MESSAGE, 400);
+      }
+    }
+
     const userId = await resolveAuditUserId(ctx.supabase, ctx.accountId);
 
     const { data, error } = await ctx.supabase
@@ -157,7 +166,7 @@ export async function POST(request: Request) {
         title,
         value,
         currency: typeof body.currency === 'string' ? body.currency : 'USD',
-        notes: typeof body.notes === 'string' ? body.notes : null,
+        notes,
         expected_close_date:
           typeof body.expected_close_date === 'string'
             ? body.expected_close_date

@@ -132,10 +132,10 @@ Every story has acceptance criteria, **already built vs gap**, and a phase. IDs 
 
 | ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| US-5 | As counsel / owner, I can prove WhatsApp is **not** a HIPAA channel and block PHI on send, notes, KB, and agent artifacts. | 3–4 | Partial (consent/STOP; deny-list + banners still open) |
+| US-5 | As counsel / owner, I can prove WhatsApp is **not** a HIPAA channel and block PHI on send, notes, KB, and agent artifacts. | 3–4 | Partial (deny-list on A2A, notes, KB, templates, deal notes; account-JSON extras + inbox banners still open) |
 | US-6 | As a marketer, I can capture **prior express consent** on a landing (verbatim copy, IP, UA) before any marketing WA. | 3 | Built |
 | US-7 | As a lead, I can reply STOP and never get another marketing WA/email from this system. | 3 | Built (WA); email List-Unsubscribe still open |
-| US-8 | As an integrator, I can use **full REST + sync**: contact-groups, campaigns, wa-groups read/sync, consents, pipelines, landings. | 2 | Partial (`/api/v1` has wa-groups, consents, contact-groups, campaigns CRUD + enroll/pause/resume, pipelines/deals, landings; Baileys group-admin and webhook delivery queue still open) |
+| US-8 | As an integrator, I can use **full REST + sync**: contact-groups, campaigns, wa-groups read/sync, consents, pipelines, landings. | 2 | Partial (`/api/v1` has wa-groups, consents, contact-groups, campaigns CRUD + enroll/pause/resume, pipelines/deals, landings, webhook queue; Baileys group-admin still open) |
 | US-9 | As an operator, I can run **lite deploy** (web `:3100` + worker `:4000` + Redis + hosted Supabase) with health checks. | 1 | Docs + compose exist; production smoke still an operator task |
 | US-10 | As the concierge, I can delegate to Lead Qualifier, Compliance, Content, Booking, Analytics over A2A. | 4 | **Not built** |
 | US-11 | As Maya, I can run group-extract → select consented subset → delayed Baileys send → schedule (end-to-end example in ARCHITECTURE §6.2). | 1–3 | Partial (pieces exist; consent vs ~4,907 imports is the blocker) |
@@ -197,7 +197,7 @@ Every story has acceptance criteria, **already built vs gap**, and a phase. IDs 
 - [x] `wa-groups` read + trigger sync; admin actions behind `groups:admin` (sync only; add/remove/promote still open).
 - [x] `consents` read.
 - [x] Update `docs/public-api.md`. MCP tools may wrap new read endpoints (writes still opt-in).
-- [ ] Webhook delivery queue (durable retry-with-backoff). Endpoint CRUD already ships; queue is deferred (not this phase).
+- [x] Webhook delivery queue (durable retry-with-backoff). Endpoint CRUD already ships; `webhook_deliveries` + claim RPC (063), drain in web `after()` / `/api/webhooks/cron` / worker.
 
 **Group admin + sync (Baileys; Cloud API groups are limited)**
 
@@ -221,7 +221,7 @@ If production sends are Cloud-API-only, **group admin is deferred** and this pha
 
 - [x] `consents`, UTM on contacts, `landing_pages`, public `/p/[slug]`, audience ∩ consent, broadcast refuse without consent, STOP revokes WA consent.
 - [ ] `marketing_campaigns` wrapper **or** FK from existing campaigns/broadcasts.
-- [ ] PHI deny-list (account JSON) on fields, notes, KB, templates.
+- [x] PHI deny-list on notes (contact notes API + deal notes), KB, templates, and A2A artifacts. Account-specific extra JSON terms still open.
 - [ ] Email List-Unsubscribe + parity with WA.
 - [ ] Consent badge on contact; STOP footer defaults; checkbox copy stored verbatim (landing already stores copy).
 - [ ] Content calendar (**P1**).
@@ -384,10 +384,11 @@ Find these **now**. Do not discover them on the first blast. This is not legal a
 1. Phase 1 compose + cron smoke on the production Supabase project (US-9, US-3).
 2. QR test number + group sync counts: phones vs LID vs names vs email-empty (US-1).
 3. Broadcast preview: eligible vs ineligible among the existing book — **do not send** (US-2, US-11).
-4. PHI deny-list + inbox banner (US-5).
-5. Phase 2 remainder: campaigns create/update/resume + landings REST (US-8) — **shipped**. Group-admin (add/remove/promote) and webhook delivery queue still deferred (not in worker / not this phase).
+4. PHI inbox banner + account-JSON extra terms (US-5). Deny-list on notes / KB / templates shipped.
+5. Phase 2 remainder: campaigns create/update/resume + landings REST + webhook delivery queue (US-8) — **shipped**. Group-admin (add/remove/promote) still deferred (not in worker).
 6. Jitter policy settings + tests (US-2 gap).
 7. Phase 4: Compliance card wrapping `lib/consent.ts` + deny-list (US-10, US-4 keys).
+8. PHI extras: account-JSON deny terms, inbox banner, email List-Unsubscribe (US-5 / US-7).
 
 ---
 

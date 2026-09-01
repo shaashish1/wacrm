@@ -5,4 +5,4 @@ export { runQualifierSkill, qualifyByRules } from './qualifier';
 export { runContentSkill, draftByRules } from './content';
 export { runBookingSkill, offerConsultSlots } from './booking';
 export { runAnalyticsSkill, computeOptOutRate } from './analytics';
-export { scanPhi, hasPhi, copyHasStopFooter } from './phi';
+export { scanPhi, scanPhiMany, hasPhi, copyHasStopFooter, PHI_REFUSE_MESSAGE } from './phi';

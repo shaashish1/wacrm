@@ -8,6 +8,7 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { loadEmbeddingsKey } from '@/lib/ai/config'
 import { ingestDocument } from '@/lib/ai/knowledge'
 import { AiError } from '@/lib/ai/types'
+import { PHI_REFUSE_MESSAGE, scanPhiMany } from '@/lib/a2a/phi'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -57,6 +58,14 @@ export async function PATCH(request: Request, { params }: Params) {
     }
     if (content !== undefined && !content) {
       return NextResponse.json({ error: 'content cannot be empty' }, { status: 400 })
+    }
+
+    const phi = scanPhiMany(title, content)
+    if (phi.length > 0) {
+      return NextResponse.json(
+        { error: PHI_REFUSE_MESSAGE, code: 'phi_denied', violations: phi },
+        { status: 400 },
+      )
     }
 
     const update: Record<string, string> = {}

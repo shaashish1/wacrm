@@ -11,6 +11,7 @@ import {
 import { buildMetaTemplatePayload } from '@/lib/whatsapp/template-components'
 import { ensureImageHeaderHandle } from '@/lib/whatsapp/template-header-handle'
 import { normalizeStatus } from '@/lib/whatsapp/template-status-normalize'
+import { PHI_REFUSE_MESSAGE, scanPhiMany } from '@/lib/a2a/phi'
 
 /**
  * Shared upsert payload builder — both the Meta-failure path and the
@@ -134,6 +135,18 @@ export async function POST(request: Request) {
           error:
             'AUTHENTICATION templates are not yet supported here — create them in Meta WhatsApp Manager and use "Sync from Meta".',
         },
+        { status: 400 },
+      )
+    }
+
+    const phi = scanPhiMany(
+      payload.body_text,
+      payload.header_content,
+      payload.footer_text,
+    )
+    if (phi.length > 0) {
+      return NextResponse.json(
+        { error: PHI_REFUSE_MESSAGE, code: 'phi_denied', violations: phi },
         { status: 400 },
       )
     }

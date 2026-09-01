@@ -7,6 +7,7 @@
 import { requireApiKey } from '@/lib/auth/api-context';
 import { ok, fail, toApiErrorResponse } from '@/lib/api/v1/respond';
 import { DEAL_SELECT, parseDealStatus, serializeDeal } from '@/lib/api/v1/pipelines';
+import { PHI_REFUSE_MESSAGE, scanPhi } from '@/lib/a2a/phi';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -80,8 +81,15 @@ export async function PATCH(request: Request, { params }: Params) {
       updates.currency = body.currency;
     }
     if ('notes' in body) {
-      updates.notes =
+      const notes =
         body.notes === null || typeof body.notes === 'string' ? body.notes : null;
+      if (typeof notes === 'string') {
+        const hits = scanPhi(notes);
+        if (hits.length > 0) {
+          return fail('phi_denied', PHI_REFUSE_MESSAGE, 400);
+        }
+      }
+      updates.notes = notes;
     }
     if ('expected_close_date' in body) {
       updates.expected_close_date =

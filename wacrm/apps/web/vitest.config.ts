@@ -19,7 +19,6 @@ export default defineConfig({
       "src/lib/ai/auto-reply.test.ts",
       "src/lib/ai/config.test.ts",
       "src/lib/contacts/tag-events.test.ts",
-      "src/lib/webhooks/deliver.test.ts",
       "src/app/api/whatsapp/send/route.test.ts",
       "src/app/api/contacts/[id]/tags/route.test.ts",
     ],

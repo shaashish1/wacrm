@@ -29,6 +29,7 @@ jobs:
           fi
           curl -fsS -H "Authorization: Bearer ${CRON_SECRET}" "${APP_URL}/api/broadcasts/cron"
           curl -fsS -H "Authorization: Bearer ${CRON_SECRET}" "${APP_URL}/api/campaigns/cron"
+          curl -fsS -H "Authorization: Bearer ${CRON_SECRET}" "${APP_URL}/api/webhooks/cron"
 
       - name: Automations + flows
         env:

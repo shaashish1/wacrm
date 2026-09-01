@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { CURRENCIES } from "@/lib/currency";
+import { hasPhi, PHI_REFUSE_MESSAGE } from "@/lib/a2a/phi";
 import type {
   Contact,
   Conversation,
@@ -154,6 +155,10 @@ export function DealForm({
   async function handleSave() {
     if (!title.trim() || !contactId || !stageId) {
       toast.error(t("toastRequired"));
+      return;
+    }
+    if (hasPhi(notes) || hasPhi(title)) {
+      toast.error(PHI_REFUSE_MESSAGE);
       return;
     }
     setSaving(true);
