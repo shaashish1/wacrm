@@ -1,4 +1,6 @@
-FROM node:20-alpine AS builder
+# bookworm-slim (glibc): apps/web pins @parcel/watcher-linux-x64-glibc.
+# Alpine/musl fails `next build` with "No prebuild ... watcher-linux-x64-musl".
+FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json .npmrc ./
@@ -23,10 +25,10 @@ ENV META_APP_SECRET=build-placeholder
 RUN npm run build --workspace=@wacrm/shared
 RUN npm run build --workspace=@wacrm/web
 
-FROM node:20-alpine
+FROM node:22-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
-RUN addgroup -S app && adduser -S app -G app
+RUN groupadd -r app && useradd -r -g app app
 COPY --from=builder --chown=app:app /app ./
 USER app
 EXPOSE 3100

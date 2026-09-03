@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json .npmrc ./
@@ -13,7 +13,7 @@ COPY apps/worker ./apps/worker
 RUN npm run build --workspace=@wacrm/shared
 RUN npm run build --workspace=@wacrm/worker
 
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 # Run as root so the Compose sessions volume is writable (Baileys auth state).

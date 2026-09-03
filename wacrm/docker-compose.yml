@@ -25,9 +25,9 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_URL: http://host.docker.internal:54321
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+        NEXT_PUBLIC_SITE_URL: http://localhost:3100
     restart: unless-stopped
     logging:
       driver: json-file
@@ -37,10 +37,18 @@ services:
     ports:
       - "3100:3100"
     env_file:
-      - .env
+      - path: apps/web/.env.local
+        required: false
+      - path: .env
+        required: false
     environment:
       NODE_ENV: production
       REDIS_URL: redis://redis:6379
+      # Local `supabase start` is on the host; 127.0.0.1 inside the container is not that API.
+      NEXT_PUBLIC_SITE_URL: http://localhost:3100
+      NEXT_PUBLIC_SUPABASE_URL: http://host.docker.internal:54321
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       redis:
         condition: service_healthy
@@ -70,10 +78,17 @@ services:
     ports:
       - "4000:4000"
     env_file:
-      - .env
+      - path: apps/web/.env.local
+        required: false
+      - path: .env
+        required: false
     environment:
       NODE_ENV: production
       REDIS_URL: redis://redis:6379
+      NEXT_PUBLIC_SITE_URL: http://localhost:3100
+      NEXT_PUBLIC_SUPABASE_URL: http://host.docker.internal:54321
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - worker_sessions:/app/apps/worker/sessions
     depends_on:
