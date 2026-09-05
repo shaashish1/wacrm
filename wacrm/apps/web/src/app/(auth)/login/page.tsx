@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
+import { parseSignInEmail } from "@/lib/auth/sign-in-email";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,7 +16,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { MessageSquare, UsersRound, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // `useSearchParams` opts the component out of static prerendering
 // unless it sits under a Suspense boundary. We split the form into
@@ -50,34 +52,17 @@ function LoginPageInner() {
     setError(null);
     setLoading(true);
 
-    const loginEmail = email.includes("@") ? email : `${email}@wacrm.itgyani.com`;
+    const parsed = parseSignInEmail(email);
+    if ("error" in parsed) {
+      setError(parsed.error);
+      setLoading(false);
+      return;
+    }
 
-    // 1. Attempt sign in
-    let { error: signInError } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: parsed.email,
       password,
     });
-
-    // 2. If invalid credentials or unconfirmed, auto-create and retry
-    if (signInError) {
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: loginEmail,
-        password,
-        options: {
-          data: {
-            full_name: email.split("@")[0] || "Admin",
-          },
-        },
-      });
-
-      if (!signUpError) {
-        const retry = await supabase.auth.signInWithPassword({
-          email: loginEmail,
-          password,
-        });
-        signInError = retry.error;
-      }
-    }
 
     if (signInError) {
       setError(signInError.message);
@@ -93,17 +78,13 @@ function LoginPageInner() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-md border-border/80 bg-card/80 shadow-xl backdrop-blur-xl">
+      <Card className="w-full max-w-md border-border bg-card">
         <CardHeader className="items-center text-center">
-          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
-            {inviteToken ? (
-              <UsersRound className="h-6 w-6 text-primary" />
-            ) : (
-              <MessageSquare className="h-6 w-6 text-primary" />
-            )}
-          </div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+          <p className="font-heading text-lg font-semibold tracking-tight text-foreground">
             AudienceGate
+          </p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            {t("category")}
           </p>
           <CardTitle className="font-heading text-xl font-semibold tracking-tight text-foreground">
             {inviteToken ? t('titleAccept') : t('titleWelcome')}
@@ -117,7 +98,10 @@ function LoginPageInner() {
         <CardContent>
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             {error && (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              <div
+                role="alert"
+                className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400"
+              >
                 {error}
               </div>
             )}
@@ -128,12 +112,14 @@ function LoginPageInner() {
               </Label>
               <Input
                 id="email"
-                type="text"
+                type="email"
+                autoComplete="email"
                 placeholder={t('emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="border-border bg-muted text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/20"
+                aria-invalid={Boolean(error)}
+                className="border-border bg-muted text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary"
               />
             </div>
 
@@ -183,19 +169,23 @@ function LoginPageInner() {
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            {t('noAccount')}{" "}
-            <Link
-              href={
-                inviteToken
-                  ? `/signup?invite=${encodeURIComponent(inviteToken)}`
-                  : "/signup"
-              }
-              className="text-primary hover:text-primary/80"
-            >
-              {t('createAccount')}
-            </Link>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            {t("honesty")}
           </p>
+
+          <Link
+            href={
+              inviteToken
+                ? `/signup?invite=${encodeURIComponent(inviteToken)}`
+                : "/signup"
+            }
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "mt-6 h-11 w-full",
+            )}
+          >
+            {t("createAccount")}
+          </Link>
         </CardContent>
       </Card>
     </div>

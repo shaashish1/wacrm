@@ -70,7 +70,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protected pages - redirect to login if not authenticated.
-  // Keep in sync with apps/web/src/components/layout/sidebar.tsx navItems.
+  // Includes routes no longer in the primary sidebar (broadcasts, agents, …).
   const protectedPaths = [
     '/dashboard',
     '/inbox',

@@ -172,9 +172,12 @@ export default function CampaignsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Drip Campaigns</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+            Campaigns
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Automate multi-step email and WhatsApp sequences.
+            Consented audience only. Compliance can refuse. Extract is not a
+            send list.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -239,7 +242,9 @@ export default function CampaignsPage() {
                     {campaign.channel}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {campaign.enrollments_count || 0}
+                    {typeof campaign.enrollments_count === "number"
+                      ? campaign.enrollments_count
+                      : "—"}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -280,6 +285,43 @@ export default function CampaignsPage() {
           </TableBody>
         </Table>
       </div>
+
+      <section className="rounded-lg border border-border bg-card p-5">
+        <h2 className="font-heading text-base font-semibold text-foreground">
+          Consent gate
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Audience is the contact group with active WhatsApp consent, not
+          opted out. Extract stays in the CRM. Compliance can refuse the
+          send.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-md border border-border px-3 py-3">
+            <p className="font-heading text-sm font-semibold text-primary">
+              Eligible
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Landing yes · can be scheduled
+            </p>
+          </div>
+          <div className="rounded-md border border-border px-3 py-3">
+            <p className="font-heading text-sm font-semibold text-muted-foreground">
+              Need consent
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Extract only · out of send
+            </p>
+          </div>
+          <div className="rounded-md border border-border px-3 py-3">
+            <p className="font-heading text-sm font-semibold text-red-400">
+              STOP
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Honor immediately · never re-ask in-thread
+            </p>
+          </div>
+        </div>
+      </section>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent>

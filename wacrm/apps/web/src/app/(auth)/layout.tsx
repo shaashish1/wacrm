@@ -20,5 +20,5 @@ export const metadata: Metadata = {
 };
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
-  return <div className="bg-mesh min-h-screen">{children}</div>;
+  return <div className="min-h-screen bg-background">{children}</div>;
 }
