@@ -40,6 +40,8 @@ import {
 import { useCan } from '@/hooks/use-can';
 import { GatedButton } from '@/components/ui/gated-button';
 import { useRouter } from 'next/navigation';
+import { PageIntro } from '@/components/layout/page-intro';
+import { AUDIENCE_NAV, SectionNav } from '@/components/layout/section-nav';
 
 export default function ContactGroupsPage() {
   const supabase = createClient();
@@ -153,14 +155,10 @@ export default function ContactGroupsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Contact Groups</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Organize your contacts into static lists or smart segments.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      <SectionNav items={AUDIENCE_NAV} label="Audience" />
+      <PageIntro
+        description="Static lists and smart segments. Extract is stored here. It is not a send list."
+        actions={
           <GatedButton
             canAct={canEdit}
             gateReason="create groups"
@@ -168,10 +166,10 @@ export default function ContactGroupsPage() {
             className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <Plus className="size-4 mr-2" />
-            Add Group
+            Add group
           </GatedButton>
-        </div>
-      </div>
+        }
+      />
 
       <div className="rounded-lg border border-border overflow-hidden bg-card">
         <Table>

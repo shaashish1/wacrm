@@ -29,8 +29,8 @@
     "broadcasts": "브로드캐스트",
     "automations": "자동화",
     "flows": "플로우",
-    "aiAgents": "AI 에이전트",
-    "waGroups": "WA 그룹",
+    "aiAgents": "스페셜리스트",
+    "waGroups": "WhatsApp 그룹",
     "contactGroups": "연락처 그룹",
     "campaigns": "캠페인",
     "settings": "설정",
@@ -89,6 +89,10 @@
       "noChange": "변동 없음 {suffix}"
     },
     "quickActions": {
+      "inbox": "인박스",
+      "audience": "오디언스",
+      "campaigns": "캠페인",
+      "deals": "딜",
       "newContact": "새 연락처",
       "newDeal": "새 딜",
       "newBroadcast": "새 브로드캐스트",

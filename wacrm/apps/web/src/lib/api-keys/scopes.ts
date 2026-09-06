@@ -52,7 +52,7 @@ export const SCOPE_DESCRIPTIONS: Record<ApiScope, string> = {
   'consents:read': 'List and read marketing consent ledger rows',
   'contact-groups:read': 'List and read CRM contact groups and members',
   'contact-groups:write': 'Create, update, and manage CRM contact groups',
-  'campaigns:read': 'List and read drip campaigns and enrollments',
+  'campaigns:read': 'List and read campaigns and enrollments',
   'campaigns:send':
     'Create and update campaigns; enroll consented contacts; pause or resume (does not send WhatsApp)',
   'pipelines:read': 'List and read pipelines, stages, and deals',

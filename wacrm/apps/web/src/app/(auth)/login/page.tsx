@@ -130,7 +130,7 @@ function LoginPageInner() {
                 </Label>
                 <Link
                   href="/forgot-password"
-                  className="text-sm text-primary hover:text-primary/80"
+                  className="text-sm text-link hover:underline"
                 >
                   {t('forgotPassword')}
                 </Link>

@@ -1,41 +1,70 @@
+import type { Metadata } from "next";
+import {
+  MarketingFooter,
+  MarketingHeader,
+} from "@/components/marketing/site-chrome";
+
+export const metadata: Metadata = {
+  title: "Privacy",
+  description:
+    "What AudienceGate stores: account, contacts, consent, and message history you put in the CRM.",
+  robots: { index: true, follow: true },
+};
+
 export default function PrivacyPolicy() {
   return (
-    <div className="max-w-4xl mx-auto py-12 px-6">
-      <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
-      <div className="prose dark:prose-invert max-w-none">
-        <p className="mb-4">Last Updated: {new Date().toLocaleDateString()}</p>
-        
-        <h2 className="text-xl font-semibold mt-8 mb-4">1. Information We Collect</h2>
-        <p className="mb-4">
-          We collect information you provide directly to us, including but not limited to: your name, email address, phone number, and any data you import into our CRM (e.g., your contacts' information and message history).
-        </p>
+    <div className="min-h-screen bg-background text-foreground">
+      <MarketingHeader />
+      <main className="px-4 py-12 sm:px-8 sm:py-16">
+        <article className="mx-auto max-w-[68ch]">
+          <h1 className="font-heading text-[36px] leading-[44px] font-semibold tracking-tight">
+            Privacy
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Last updated 6 September 2026
+          </p>
 
-        <h2 className="text-xl font-semibold mt-8 mb-4">2. How We Use Your Information</h2>
-        <p className="mb-4">
-          We use the information we collect to operate our platform, facilitate messaging via WhatsApp, provide customer support, and improve our services.
-        </p>
+          <h2 className="font-heading mt-10 text-lg font-semibold">
+            What is stored
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            AudienceGate stores the account you create (name, email) and the
+            CRM data you import or collect: contacts, groups, consent records,
+            campaigns, and inbox history. Tenant landings collect the fields
+            shown on that page, including STOP and consent.
+          </p>
 
-        <h2 className="text-xl font-semibold mt-8 mb-4">3. Third-Party Service Providers</h2>
-        <p className="mb-4">
-          We may share your data with trusted third-party service providers (subprocessors) to facilitate our services. These include:
-        </p>
-        <ul className="list-disc pl-6 mb-4 space-y-2">
-          <li><strong>Supabase:</strong> For database hosting and authentication.</li>
-          <li><strong>Stripe:</strong> For payment processing.</li>
-          <li><strong>OpenAI / Anthropic:</strong> For generating AI auto-replies (if enabled by you). Your data is NOT used to train their models.</li>
-          <li><strong>Meta:</strong> When utilizing the official Cloud API for messaging.</li>
-        </ul>
+          <h2 className="font-heading mt-10 text-lg font-semibold">
+            How it is used
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            That data runs the operator app: inbox, audience, consented
+            campaigns, and deals. It is not used to invent a send list from
+            extract. Extract stays in the CRM until a lawful yes.
+          </p>
 
-        <h2 className="text-xl font-semibold mt-8 mb-4">4. Data Retention and Deletion (GDPR)</h2>
-        <p className="mb-4">
-          You have the right to request access to or deletion of your personal data at any time. When you delete your account, we will permanently remove your PII and all associated CRM contacts from our active databases within 30 days.
-        </p>
+          <h2 className="font-heading mt-10 text-lg font-semibold">
+            Processors
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            A self-hosted instance typically uses Supabase for database and
+            auth. If you enable Cloud API, Meta receives the messages you
+            send. If you enable a specialist model key, that provider receives
+            the prompts you send. Payment processors apply only if billing is
+            turned on.
+          </p>
 
-        <h2 className="text-xl font-semibold mt-8 mb-4">5. Contact Us</h2>
-        <p className="mb-4">
-          If you have any questions or concerns about this Privacy Policy or our data practices, please contact us at support@example.com.
-        </p>
-      </div>
+          <h2 className="font-heading mt-10 text-lg font-semibold">
+            Access and deletion
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            You can ask the operator who hosts your instance for a copy or
+            deletion of account and CRM data. Active databases are cleared
+            within 30 days after an account delete request is completed.
+          </p>
+        </article>
+      </main>
+      <MarketingFooter />
     </div>
   );
 }

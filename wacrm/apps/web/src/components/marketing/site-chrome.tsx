@@ -37,11 +37,20 @@ export function MarketingFooter() {
     <footer className="border-t border-border px-4 py-6 text-sm text-muted-foreground sm:px-8">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <span className="font-heading text-foreground">AudienceGate</span>
+        <Link href="/features" className="hover:text-foreground">
+          Features
+        </Link>
         <Link href="/login" className="hover:text-foreground">
           Sign in
         </Link>
         <Link href="/signup" className="hover:text-foreground">
           Create account
+        </Link>
+        <Link href="/terms" className="hover:text-foreground">
+          Terms
+        </Link>
+        <Link href="/privacy" className="hover:text-foreground">
+          Privacy
         </Link>
       </div>
     </footer>

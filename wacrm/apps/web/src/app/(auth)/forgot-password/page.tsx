@@ -3,17 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { MessageSquare, CheckCircle, ArrowLeft } from "lucide-react";
+import { AuthAlert, AuthShell } from "@/components/auth/auth-shell";
+import { cn } from "@/lib/utils";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -27,16 +21,22 @@ export default function ForgotPasswordPage() {
     setError(null);
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
-    });
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+      email,
+      {
+        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+      },
+    );
 
-    if (error) {
-      console.error('[forgot-password] resetPasswordForEmail failed:', error.message);
+    if (resetError) {
+      console.error(
+        "[forgot-password] resetPasswordForEmail failed:",
+        resetError.message,
+      );
       setError(
-        error.message === 'Error sending recovery email'
-          ? 'Could not send email. Self-hosted Auth usually needs SMTP configured (GOTRUE_SMTP_HOST / USER / PASS on the GoTrue service). Sign in with your existing password, or create a new account if email confirmation is disabled.'
-          : error.message,
+        resetError.message === "Error sending recovery email"
+          ? "Could not send email. Self-hosted Auth usually needs SMTP configured (GOTRUE_SMTP_HOST / USER / PASS on the GoTrue service). Sign in with your existing password, or create a new account if email confirmation is disabled."
+          : resetError.message,
       );
       setLoading(false);
       return;
@@ -48,89 +48,70 @@ export default function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <Card className="w-full max-w-md border-border/80 bg-card/80 shadow-xl backdrop-blur-xl">
-          <CardHeader className="items-center text-center">
-            <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-              <CheckCircle className="h-6 w-6 text-primary" />
-            </div>
-            <CardTitle className="text-xl text-foreground">
-              Check your email
-            </CardTitle>
-            <CardDescription className="text-muted-foreground">
-              We&apos;ve sent a password reset link to{" "}
-              <span className="text-foreground">{email}</span>. Please check your
-              inbox.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/login">
-              <Button
-                variant="outline"
-                className="w-full border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                Back to sign in
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthShell
+        title="Check your email"
+        description={
+          <>
+            If an account exists for{" "}
+            <span className="text-foreground">{email}</span>, we sent a reset
+            link. This page does not create an account.
+          </>
+        }
+      >
+        <Link
+          href="/login"
+          className={cn(buttonVariants({ variant: "outline" }), "h-11 w-full")}
+        >
+          Back to sign in
+        </Link>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-md border-border/80 bg-card/80 shadow-xl backdrop-blur-xl">
-        <CardHeader className="items-center text-center">
-          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-            <MessageSquare className="h-6 w-6 text-primary" />
-          </div>
-          <CardTitle className="font-heading text-xl font-semibold tracking-tight text-foreground">Reset password</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Enter your email and we&apos;ll send you a reset link
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleReset} className="flex flex-col gap-4">
-            {error && (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                {error}
-              </div>
-            )}
+    <AuthShell
+      title="Reset password"
+      description="Enter the email you already use. This sends a reset link. It does not create an account."
+    >
+      <form onSubmit={handleReset} className="flex flex-col gap-4">
+        {error && <AuthAlert>{error}</AuthAlert>}
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email" className="text-muted-foreground">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="border-border bg-muted text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/20"
-              />
-            </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="email" className="text-muted-foreground">
+            Email
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            aria-invalid={Boolean(error)}
+            className="border-border bg-muted text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary"
+          />
+        </div>
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="mt-2 h-11 w-full"
-            >
-              {loading ? "Sending..." : "Send reset link"}
-            </Button>
-          </form>
+        <Button type="submit" disabled={loading} className="mt-2 h-11 w-full">
+          {loading ? "Sending..." : "Send reset link"}
+        </Button>
+      </form>
 
-          <Link
-            href="/login"
-            className="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to sign in
-          </Link>
-        </CardContent>
-      </Card>
-    </div>
+      <p className="mt-4 text-center text-xs text-muted-foreground">
+        Reset password means send a reset link. Sign in and create account stay
+        separate.
+      </p>
+
+      <Link
+        href="/login"
+        className={cn(
+          buttonVariants({ variant: "outline" }),
+          "mt-6 h-11 w-full",
+        )}
+      >
+        Back to sign in
+      </Link>
+    </AuthShell>
   );
 }

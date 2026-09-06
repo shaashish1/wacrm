@@ -1,5 +1,5 @@
 // ============================================================
-// GET  /api/v1/campaigns — list drip campaigns (scope: campaigns:read)
+// GET  /api/v1/campaigns — list campaigns (scope: campaigns:read)
 // POST /api/v1/campaigns — create a draft (scope: campaigns:send)
 //
 // Create always persists status=draft and does not enroll or send.

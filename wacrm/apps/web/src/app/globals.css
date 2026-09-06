@@ -36,6 +36,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-link: var(--link);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -115,7 +116,8 @@ html[data-mode="dark"] {
   --sidebar-accent: #111a2e;
   --sidebar-accent-foreground: #e2e8f0;
   --sidebar-border: rgb(148 163 184 / 0.12);
-  --shadow-glow-value: 0 0 40px color-mix(in oklab, var(--primary) 18%, transparent);
+  --link: #7dd3fc;
+  --shadow-glow-value: none;
 }
 
 html[data-mode="light"] {
@@ -145,7 +147,8 @@ html[data-mode="light"] {
   --sidebar-accent: #e8f0f8;
   --sidebar-accent-foreground: #0b1220;
   --sidebar-border: rgb(11 18 32 / 0.08);
-  --shadow-glow-value: 0 0 32px color-mix(in oklab, var(--primary) 22%, transparent);
+  --link: #0369a1;
+  --shadow-glow-value: none;
 }
 
 /* ---- ACCENT: primary color ---- */
@@ -255,41 +258,11 @@ html[data-theme="rose"] {
 
 .bg-mesh {
   background-color: var(--background);
-  background-image:
-    radial-gradient(
-      ellipse 60% 50% at 15% 10%,
-      color-mix(in oklab, var(--primary) 14%, transparent),
-      transparent 60%
-    ),
-    radial-gradient(
-      ellipse 50% 45% at 85% 25%,
-      color-mix(in oklab, var(--primary) 8%, transparent),
-      transparent 60%
-    ),
-    radial-gradient(
-      ellipse 70% 60% at 50% 100%,
-      color-mix(in oklab, var(--primary) 7%, transparent),
-      transparent 65%
-    );
+  background-image: none;
 }
 
 html[data-mode="light"] .bg-mesh {
-  background-image:
-    radial-gradient(
-      ellipse 60% 50% at 15% 10%,
-      color-mix(in oklab, var(--primary) 10%, transparent),
-      transparent 60%
-    ),
-    radial-gradient(
-      ellipse 50% 45% at 85% 25%,
-      color-mix(in oklab, var(--primary) 6%, transparent),
-      transparent 60%
-    ),
-    radial-gradient(
-      ellipse 70% 60% at 50% 100%,
-      color-mix(in oklab, var(--primary) 5%, transparent),
-      transparent 65%
-    );
+  background-image: none;
 }
 
 @keyframes broadcast-slide {

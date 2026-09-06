@@ -29,9 +29,9 @@
     "broadcasts": "Broadcasts",
     "automations": "Automations",
     "flows": "Flows",
-    "aiAgents": "AI Agents",
-    "waGroups": "WA Groups",
-    "contactGroups": "Contact Groups",
+    "aiAgents": "Specialists",
+    "waGroups": "WhatsApp groups",
+    "contactGroups": "Contact groups",
     "campaigns": "Campaigns",
     "settings": "Settings",
     "beta": "Beta",
@@ -89,6 +89,10 @@
       "noChange": "No change {suffix}"
     },
     "quickActions": {
+      "inbox": "Inbox",
+      "audience": "Audience",
+      "campaigns": "Campaigns",
+      "deals": "Deals",
       "newContact": "New Contact",
       "newDeal": "New Deal",
       "newBroadcast": "New Broadcast",
@@ -608,7 +612,7 @@
   "Broadcasts": {
     "page": {
       "title": "Broadcasts",
-      "subtitle": "Send one WhatsApp message to many contacts — now or on a schedule.",
+      "subtitle": "One-time send to a consented audience. Compliance can refuse. Extract stays out of send.",
       "newBroadcast": "New broadcast",
       "noBroadcastsYet": "No broadcasts yet",
       "createFirst": "Create your first broadcast to reach your contacts at scale.",
@@ -850,7 +854,7 @@
   "Automations": {
     "list": {
       "title": "Automations",
-      "subtitle": "Build workflows that react to WhatsApp® events automatically.",
+      "subtitle": "Rules that fire on inbox events. They do not bypass the consent ledger.",
       "create": "Create Automation",
       "retry": "Retry",
       "templatesTitle": "Quick-start templates",
@@ -1059,7 +1063,7 @@
     "list": {
       "title": "Flows",
       "beta": "Beta",
-      "description": "Build branching, button-driven WhatsApp conversations. Useful for menus, FAQs, and triage before a human steps in.",
+      "description": "Keyword and button menus before a human takes the thread. Consult, intro, or tour only.",
       "newFlow": "New flow",
       "statusDraft": "Draft",
       "statusActive": "Active",
@@ -1279,7 +1283,7 @@
   },
   "Settings": {
     "pageTitle": "Settings",
-    "pageDesc": "Everything in one place — your account and your workspace. Pick a section to manage it.",
+    "pageDesc": "Account, WhatsApp connection, landings, and team. Automations, flows, and specialists are linked below.",
     "overview": {
       "notSetup": "Not set up yet",
       "connected": "Connected",
@@ -1777,8 +1781,8 @@
     }
   },
   "WaGroups": {
-    "title": "WhatsApp Groups",
-    "subtitle": "Sync groups from your connected WhatsApp and import members as CRM contacts.",
+    "title": "WhatsApp groups",
+    "subtitle": "Sync groups from connected WhatsApp. Import stores extract. Extract is not consent.",
     "syncBtn": "Sync Groups",
     "syncContactsBtn": "Sync WhatsApp contacts",
     "syncContactsQueued": "Address-book sync queued.",

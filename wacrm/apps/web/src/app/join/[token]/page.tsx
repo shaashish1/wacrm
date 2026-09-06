@@ -32,7 +32,6 @@ import {
   Loader2,
   MailX,
   ShieldCheck,
-  UsersRound,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -235,10 +234,13 @@ export default function JoinPage() {
     return (
       <Card className="w-full max-w-md border-border bg-card">
         <CardHeader className="items-center text-center">
-          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10">
-            <MailX className="h-6 w-6 text-red-400" />
-          </div>
-          <CardTitle className="text-xl text-foreground">{copy.title}</CardTitle>
+          <p className="font-heading text-lg font-semibold tracking-tight text-foreground">
+            AudienceGate
+          </p>
+          <MailX className="h-5 w-5 text-red-400" />
+          <CardTitle className="font-heading text-xl font-semibold tracking-tight text-foreground">
+            {copy.title}
+          </CardTitle>
           <CardDescription className="text-muted-foreground">
             {copy.body}
           </CardDescription>
@@ -293,12 +295,15 @@ export default function JoinPage() {
   // ----- Peek OK -----
   const inviteHeader = (
     <CardHeader className="items-center text-center">
-      <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-        <UsersRound className="h-6 w-6 text-primary" />
-      </div>
-      <CardTitle className="text-xl text-foreground">
+      <p className="font-heading text-lg font-semibold tracking-tight text-foreground">
+        AudienceGate
+      </p>
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        WhatsApp campaign CRM
+      </p>
+      <CardTitle className="font-heading text-xl font-semibold tracking-tight text-foreground">
         You&apos;re invited to{' '}
-        <span className="text-primary">{peek.account_name}</span>
+        <span className="text-foreground">{peek.account_name}</span>
       </CardTitle>
       <CardDescription className="text-muted-foreground">
         You&apos;ll join as{' '}

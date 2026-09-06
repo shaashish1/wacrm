@@ -398,16 +398,16 @@ export function WWebJSConfig() {
         </AlertDescription>
       </Alert>
 
-      {/* Anti-Ban Strategy */}
       {session && (
         <Card>
           <CardHeader>
             <CardTitle className="text-foreground flex items-center gap-2">
-              <Shield className="size-4 text-green-500" />
-              Anti-Ban Strategy
+              <Shield className="size-4 text-muted-foreground" />
+              Send pacing
             </CardTitle>
             <CardDescription className="text-muted-foreground">
-              Select the rate limiting profile to avoid Meta bans. Requires a session restart to take effect.
+              Rate limits pace unofficial WhatsApp Web. This is not a ban
+              warranty. Restart the session after you change it.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -24,6 +24,8 @@ import {
   resolveSection,
   type SettingsSection,
 } from '@/components/settings/settings-sections';
+import { PageIntro } from '@/components/layout/page-intro';
+import { SETTINGS_MORE_NAV, SectionNav } from '@/components/layout/section-nav';
 
 // `useSearchParams` opts this page out of static prerendering unless it
 // sits under a Suspense boundary. Without one, the production build hits
@@ -89,13 +91,9 @@ function SettingsPageInner() {
 
   return (
     <div>
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          {t('pageTitle')}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('pageDesc')}
-        </p>
+      <PageIntro description={t('pageDesc')} />
+      <div className="mt-4">
+        <SectionNav items={SETTINGS_MORE_NAV} label="More" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[236px_minmax(0,1fr)] lg:items-start">

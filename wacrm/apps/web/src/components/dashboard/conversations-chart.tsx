@@ -49,7 +49,7 @@ export function ConversationsChart({ series, loading, range, onRangeChange }: Co
   }, [data])
 
   return (
-    <section className="flex h-full flex-col rounded-2xl border border-border bg-card/80 backdrop-blur-sm">
+    <section className="flex h-full flex-col rounded-lg border border-border bg-card">
       <header className="flex items-center justify-between border-b border-border px-5 py-4">
         <div>
           <h2 className="text-sm font-semibold text-foreground">{t('title')}</h2>

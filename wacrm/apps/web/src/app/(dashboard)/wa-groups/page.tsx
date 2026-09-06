@@ -53,6 +53,8 @@ import {
   MessageSquareOff,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { PageIntro } from '@/components/layout/page-intro';
+import { AUDIENCE_NAV, SectionNav } from '@/components/layout/section-nav';
 
 interface WaGroup {
   id: string;
@@ -613,7 +615,7 @@ export default function WaGroupsPage() {
               <ArrowLeft className="size-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">
+              <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
                 {selectedGroup.subject || selectedGroup.jid}
               </h1>
               <p className="mt-0.5 font-mono text-xs text-muted-foreground">
@@ -1016,17 +1018,15 @@ export default function WaGroupsPage() {
 
   return (
     <div className="space-y-4">
+      <SectionNav items={AUDIENCE_NAV} label="Audience" />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {t('title')}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {groups.length > 0
-              ? `${groups.length} ${t('groupsLabel')} · ${totalMembers.toLocaleString()} ${t('participantsLabel')} · ${totalPhones.toLocaleString()} ${t('withPhone')}`
-              : t('subtitle')}
-          </p>
-        </div>
+        <PageIntro
+          description={
+            groups.length > 0
+              ? `${groups.length} ${t('groupsLabel')} · ${totalMembers.toLocaleString()} ${t('participantsLabel')} · ${totalPhones.toLocaleString()} ${t('withPhone')}. Extract is not consent.`
+              : `${t('subtitle')} Extract is not consent.`
+          }
+        />
         <div className="flex items-center gap-2">
           {groups.length > 0 && (
             <Button

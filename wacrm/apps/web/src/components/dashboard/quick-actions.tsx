@@ -1,27 +1,22 @@
 "use client"
 
 import Link from 'next/link'
-import { UserPlus, Briefcase, Radio, Zap } from 'lucide-react'
+import { GitBranch, MessageSquare, Send, Users } from 'lucide-react'
 import type { ComponentType } from 'react'
 
 import { useTranslations } from 'next-intl'
 
-// Quick-action shortcuts. Each navigates to the page that owns the
-// relevant "create" flow. We deliberately don't try to auto-open any
-// modal on the target page — that'd require touching those pages,
-// which is out of scope here.
 interface Action {
   labelKey: string
   href: string
   icon: ComponentType<{ className?: string }>
-  tint: string
 }
 
 const ACTIONS: Action[] = [
-  { labelKey: 'newContact', href: '/contacts', icon: UserPlus, tint: 'text-primary' },
-  { labelKey: 'newDeal', href: '/pipelines', icon: Briefcase, tint: 'text-blue-400' },
-  { labelKey: 'newBroadcast', href: '/broadcasts/new', icon: Radio, tint: 'text-amber-400' },
-  { labelKey: 'newAutomation', href: '/automations/new', icon: Zap, tint: 'text-primary' },
+  { labelKey: 'inbox', href: '/inbox', icon: MessageSquare },
+  { labelKey: 'audience', href: '/contacts', icon: Users },
+  { labelKey: 'campaigns', href: '/campaigns', icon: Send },
+  { labelKey: 'deals', href: '/pipelines', icon: GitBranch },
 ]
 
 export function QuickActions() {
@@ -35,12 +30,12 @@ export function QuickActions() {
           <Link
             key={a.href}
             href={a.href}
-            className="group flex items-center gap-3 rounded-2xl border border-border bg-card/80 px-4 py-3 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 hover:bg-muted/60 hover:shadow-glow"
+            className="group flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 hover:bg-muted/60"
           >
-            <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-muted ${a.tint}`}>
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
               <Icon className="h-4 w-4" />
             </div>
-            <span className="text-sm font-medium text-foreground">{t(a.labelKey as string)}</span>
+            <span className="text-sm font-medium text-foreground">{t(a.labelKey)}</span>
           </Link>
         )
       })}

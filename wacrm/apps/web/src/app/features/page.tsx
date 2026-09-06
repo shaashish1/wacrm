@@ -41,7 +41,7 @@ export default function FeaturesPage() {
       <MarketingHeader />
       <main className="px-4 py-12 sm:px-8 sm:py-16">
         <div className="mx-auto max-w-[1120px]">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-primary">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-link">
             /features
           </p>
           <h1 className="font-heading mt-3 max-w-[22ch] text-[36px] leading-[44px] font-semibold tracking-tight text-foreground">

@@ -58,6 +58,8 @@ import { useCan } from '@/hooks/use-can';
 import { useAuth } from '@/hooks/use-auth';
 import { GatedButton } from '@/components/ui/gated-button';
 import { useTranslations } from 'next-intl';
+import { PageIntro } from '@/components/layout/page-intro';
+import { AUDIENCE_NAV, SectionNav } from '@/components/layout/section-nav';
 
 const PAGE_SIZE = 25;
 
@@ -347,14 +349,12 @@ export default function ContactsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {totalCount > 0 ? t('subtitle', { count: totalCount }) : t('subtitleZero')}
-          </p>
-        </div>
+      <SectionNav items={AUDIENCE_NAV} label="Audience" />
+      <PageIntro
+        description={
+          totalCount > 0 ? t('subtitle', { count: totalCount }) : t('subtitleZero')
+        }
+        actions={
         <div className="flex items-center gap-2">
           {canEditSettings && (
             <Button
@@ -386,7 +386,8 @@ export default function ContactsPage() {
             {t('addContactBtn')}
           </GatedButton>
         </div>
-      </div>
+        }
+      />
 
       {/* Search + tag filter */}
       <div className="space-y-2">

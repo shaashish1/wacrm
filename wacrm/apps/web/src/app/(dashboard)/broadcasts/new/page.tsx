@@ -295,7 +295,9 @@ function NewBroadcastWizard() {
           <ArrowLeft className="h-3.5 w-3.5" />
           {t('backToList')}
         </Link>
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+          {t('title')}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {isWwebjs ? t('subtitleWwebjs') : t('subtitle')}
         </p>

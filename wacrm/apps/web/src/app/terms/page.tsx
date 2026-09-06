@@ -1,41 +1,69 @@
+import type { Metadata } from "next";
+import {
+  MarketingFooter,
+  MarketingHeader,
+} from "@/components/marketing/site-chrome";
+
+export const metadata: Metadata = {
+  title: "Terms",
+  description:
+    "AudienceGate terms. Unofficial WhatsApp Web pairing is a ban risk, not a warranty.",
+  robots: { index: true, follow: true },
+};
+
 export default function TermsOfService() {
   return (
-    <div className="max-w-4xl mx-auto py-12 px-6">
-      <h1 className="text-3xl font-bold mb-6">Terms of Service</h1>
-      <div className="prose dark:prose-invert max-w-none">
-        <p className="mb-4">Last Updated: {new Date().toLocaleDateString()}</p>
-        
-        <h2 className="text-xl font-semibold mt-8 mb-4">1. Acceptance of Terms</h2>
-        <p className="mb-4">
-          By accessing or using our platform, you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, you may not use our services.
-        </p>
+    <div className="min-h-screen bg-background text-foreground">
+      <MarketingHeader />
+      <main className="px-4 py-12 sm:px-8 sm:py-16">
+        <article className="mx-auto max-w-[68ch]">
+          <h1 className="font-heading text-[36px] leading-[44px] font-semibold tracking-tight">
+            Terms
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Last updated 6 September 2026
+          </p>
 
-        <h2 className="text-xl font-semibold mt-8 mb-4">2. Unofficial API Risks (WWebJS)</h2>
-        <p className="mb-4 font-semibold text-red-600 dark:text-red-400">
-          IMPORTANT DISCLAIMER REGARDING WHATSAPP WEB JS (WWebJS):
-        </p>
-        <p className="mb-4">
-          Our platform offers integration via WhatsApp Web JS (WWebJS). This relies on unofficial APIs. Meta actively monitors for automated behavior on personal or standard business accounts. <strong>Your number can be permanently banned</strong> if you send spam, unsolicited messages, or rapid bulk broadcasts. 
-        </p>
-        <p className="mb-4">
-          By using the WWebJS provider, you acknowledge and accept all risks associated with unofficial integrations. We are not liable for any account bans, suspensions, or data loss resulting from your use of this integration. You agree to indemnify and hold us harmless from any claims arising from Meta's enforcement actions against your WhatsApp account.
-        </p>
+          <h2 className="font-heading mt-10 text-lg font-semibold">
+            Using AudienceGate
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            AudienceGate is a WhatsApp campaign CRM with a consent gate. You
+            may use it only if you have lawful permission to message each
+            person you schedule. Group extract is not consent. STOP must be
+            honored. If you do not agree, do not use the product.
+          </p>
 
-        <h2 className="text-xl font-semibold mt-8 mb-4">3. Acceptable Use Policy</h2>
-        <p className="mb-4">
-          You agree not to use the platform to send spam, unsolicited marketing messages (without opt-in), illegal content, or any material that violates the terms of service of underlying platforms (including WhatsApp). You are solely responsible for ensuring you have obtained explicit consent (opt-in) from recipients before sending automated messages.
-        </p>
+          <h2 className="font-heading mt-10 text-lg font-semibold">
+            Unofficial WhatsApp Web
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            QR pairing uses unofficial WhatsApp Web. Meta can restrict or ban
+            a number. Pace settings are pacing, not a ban warranty. You accept
+            that risk when you connect that path. Official Cloud API is a
+            separate connection.
+          </p>
 
-        <h2 className="text-xl font-semibold mt-8 mb-4">4. Limitation of Liability</h2>
-        <p className="mb-4">
-          To the maximum extent permitted by law, we shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses resulting from your use of the service.
-        </p>
+          <h2 className="font-heading mt-10 text-lg font-semibold">
+            Acceptable use
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            Do not send unsolicited campaigns, clinical detail, or content that
+            breaks WhatsApp or applicable marketing law. You are responsible
+            for the send set and the copy.
+          </p>
 
-        <h2 className="text-xl font-semibold mt-8 mb-4">5. Governing Law</h2>
-        <p className="mb-4">
-          These Terms shall be governed by and construed in accordance with the laws of the jurisdiction in which our company is registered, without regard to its conflict of law provisions.
-        </p>
-      </div>
+          <h2 className="font-heading mt-10 text-lg font-semibold">
+            Liability
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            To the extent the law allows, the operator is not liable for
+            indirect loss, account restriction, or data loss from your use of
+            the service or an unofficial connection.
+          </p>
+        </article>
+      </main>
+      <MarketingFooter />
     </div>
   );
 }

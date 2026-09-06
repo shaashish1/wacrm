@@ -22,6 +22,8 @@ import { GatedButton } from '@/components/ui/gated-button';
 import { getBroadcastStatus } from '@/lib/broadcast-status';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { PageIntro } from '@/components/layout/page-intro';
+import { CAMPAIGNS_NAV, SectionNav } from '@/components/layout/section-nav';
 
 /**
  * Poll cadence while any broadcast is sending. Kept modest so we don't
@@ -222,20 +224,21 @@ export default function BroadcastsPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-          {cronHint && (
-            <p className="mt-2 text-xs text-muted-foreground">{cronHint}</p>
-          )}
-        </div>
-        <NewBroadcastLink
-          canCreate={canCreate}
-          label={t('newBroadcast')}
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-        />
-      </div>
+      <SectionNav items={CAMPAIGNS_NAV} label="Campaigns" />
+      <PageIntro
+        description={t('subtitle')}
+        actions={
+          <NewBroadcastLink
+            canCreate={canCreate}
+            label={t('newBroadcast')}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          />
+        }
+      >
+        {cronHint ? (
+          <p className="mt-2 text-xs text-muted-foreground">{cronHint}</p>
+        ) : null}
+      </PageIntro>
 
       {loading ? (
         <div className="flex h-64 items-center justify-center">

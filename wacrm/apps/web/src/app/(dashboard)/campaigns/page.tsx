@@ -36,10 +36,11 @@ import {
   Send,
   Plus,
   Play,
-  Pause
 } from 'lucide-react';
 import { useCan } from '@/hooks/use-can';
 import { GatedButton } from '@/components/ui/gated-button';
+import { PageIntro } from '@/components/layout/page-intro';
+import { CAMPAIGNS_NAV, SectionNav } from '@/components/layout/section-nav';
 
 export default function CampaignsPage() {
   const supabase = createClient();
@@ -170,17 +171,10 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-            Campaigns
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Consented audience only. Compliance can refuse. Extract is not a
-            send list.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      <SectionNav items={CAMPAIGNS_NAV} label="Campaigns" />
+      <PageIntro
+        description="Consented audience only. Compliance can refuse. Extract is not a send list."
+        actions={
           <GatedButton
             canAct={canEdit}
             gateReason="create campaigns"
@@ -188,10 +182,10 @@ export default function CampaignsPage() {
             className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <Plus className="size-4 mr-2" />
-            Create Campaign
+            Create campaign
           </GatedButton>
-        </div>
-      </div>
+        }
+      />
 
       <div className="rounded-lg border border-border overflow-hidden bg-card">
         <Table>
