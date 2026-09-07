@@ -20,12 +20,12 @@ import { MembersTab } from '@/components/settings/members-tab';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
 import { MetaConversionsConfig } from '@/components/settings/meta-conversions-config';
 import { LandingsPanel } from '@/components/settings/landings-panel';
+import { SendPacingPanel } from '@/components/settings/send-pacing-panel';
 import {
   resolveSection,
   type SettingsSection,
 } from '@/components/settings/settings-sections';
 import { PageIntro } from '@/components/layout/page-intro';
-import { SETTINGS_MORE_NAV, SectionNav } from '@/components/layout/section-nav';
 
 // `useSearchParams` opts this page out of static prerendering unless it
 // sits under a Suspense boundary. Without one, the production build hits
@@ -79,6 +79,7 @@ function SettingsPageInner() {
     security: <SecurityPanel />,
     appearance: <AppearancePanel />,
     whatsapp: <WhatsAppConfig />,
+    pacing: <SendPacingPanel />,
     templates: <TemplateManager />,
     'quick-replies': <QuickRepliesManager />,
     fields: <FieldsAndTagsPanel />,
@@ -92,9 +93,6 @@ function SettingsPageInner() {
   return (
     <div>
       <PageIntro description={t('pageDesc')} />
-      <div className="mt-4">
-        <SectionNav items={SETTINGS_MORE_NAV} label="More" />
-      </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[236px_minmax(0,1fr)] lg:items-start">
         <SettingsRail active={section} onSelect={go} hints={hints} />

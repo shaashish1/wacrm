@@ -141,18 +141,6 @@ const STATUS_OPTIONS: { label: string; value: ConversationStatus; color: string 
   { label: "Closed", value: "closed", color: "text-muted-foreground" },
 ];
 
-/**
- * WhatsApp-style doodle background applied to the chat area (both the
- * active thread and the empty state). The SVG tile lives at
- * `/public/inbox-doodle.svg`; the slate-950 colour sits underneath so
- * the doodles read as a subtle pattern rather than a stark grid.
- *
- * Defined once at module scope so the two render paths can't drift —
- * if we ever switch the asset, both spots update together.
- */
-const DOODLE_BG_CLASSES =
-  "bg-background bg-[url('/inbox-doodle.svg')] bg-repeat";
-
 export function MessageThread({
   conversation,
   contact,
@@ -843,14 +831,14 @@ export function MessageThread({
   // pattern under the user's eye.
   if (!conversation || !contact) {
     return (
-      <div className={cn("flex flex-1 flex-col items-center justify-center", DOODLE_BG_CLASSES)}>
+      <div className="flex flex-1 flex-col items-center justify-center bg-background px-6 text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
           <MessageSquare className="h-8 w-8 text-muted-foreground" />
         </div>
-        <h3 className="mt-4 text-sm font-medium text-muted-foreground">
+        <h3 className="font-heading mt-4 text-base font-semibold text-foreground">
           {t("selectConversation")}
         </h3>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 max-w-[36ch] text-sm leading-6 text-muted-foreground">
           {t("selectConversationHint")}
         </p>
       </div>
@@ -877,7 +865,7 @@ export function MessageThread({
     // clipped and the hover toolbar overlaps the Tags panel. Letting the
     // root shrink lets the bubbles' break-words / max-w caps apply.
     // Issue #257.
-    <div className={cn("flex min-w-0 flex-1 flex-col", DOODLE_BG_CLASSES)}>
+    <div className="flex min-w-0 flex-1 flex-col bg-background">
       {/* Header — solid card surface sits on top of the doodle so the
           name/avatar/dropdowns stay legible. */}
       <div className="flex items-center justify-between gap-2 border-b border-border bg-card px-3 py-3 sm:px-4">

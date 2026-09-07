@@ -10,21 +10,15 @@ export type SectionNavItem = {
 };
 
 export const AUDIENCE_NAV: SectionNavItem[] = [
-  { href: "/contacts", label: "Contacts" },
-  { href: "/contact-groups", label: "Contact groups" },
+  { href: "/audience", label: "Audience" },
+  { href: "/contacts", label: "People" },
+  { href: "/contact-groups", label: "Lists" },
   { href: "/wa-groups", label: "WhatsApp groups" },
 ];
 
 export const CAMPAIGNS_NAV: SectionNavItem[] = [
   { href: "/campaigns", label: "Campaigns" },
   { href: "/broadcasts", label: "Broadcasts" },
-];
-
-export const SETTINGS_MORE_NAV: SectionNavItem[] = [
-  { href: "/notifications", label: "Notifications" },
-  { href: "/automations", label: "Automations" },
-  { href: "/flows", label: "Flows" },
-  { href: "/agents", label: "Specialists" },
 ];
 
 export function SectionNav({

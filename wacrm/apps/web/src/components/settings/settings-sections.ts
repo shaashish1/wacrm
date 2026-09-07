@@ -1,6 +1,7 @@
 import {
   Coins,
   FileText,
+  Gauge,
   KeyRound,
   LayoutGrid,
   Palette,
@@ -28,6 +29,7 @@ export const SETTINGS_SECTIONS = [
   'security',
   'appearance',
   'whatsapp',
+  'pacing',
   'templates',
   'quick-replies',
   'fields',
@@ -47,15 +49,16 @@ export interface SectionMeta {
   id: SettingsSection;
   label: string;
   icon: LucideIcon;
-  group: 'top' | 'account' | 'workspace';
+  group: 'top' | 'you' | 'whatsapp' | 'workspace';
 }
 
 export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   overview: { id: 'overview', label: 'Overview', icon: LayoutGrid, group: 'top' },
-  profile: { id: 'profile', label: 'Your profile', icon: User, group: 'account' },
-  security: { id: 'security', label: 'Login & security', icon: Shield, group: 'account' },
-  appearance: { id: 'appearance', label: 'Appearance', icon: Palette, group: 'account' },
-  whatsapp: { id: 'whatsapp', label: 'WhatsApp', icon: PlugZap, group: 'workspace' },
+  profile: { id: 'profile', label: 'Profile', icon: User, group: 'you' },
+  security: { id: 'security', label: 'Login & security', icon: Shield, group: 'you' },
+  appearance: { id: 'appearance', label: 'Appearance', icon: Palette, group: 'you' },
+  whatsapp: { id: 'whatsapp', label: 'WhatsApp / Cloud API', icon: PlugZap, group: 'whatsapp' },
+  pacing: { id: 'pacing', label: 'Send pacing', icon: Gauge, group: 'whatsapp' },
   templates: { id: 'templates', label: 'Templates', icon: FileText, group: 'workspace' },
   'quick-replies': { id: 'quick-replies', label: 'Quick replies', icon: Zap, group: 'workspace' },
   fields: { id: 'fields', label: 'Fields & tags', icon: Tags, group: 'workspace' },
@@ -68,7 +71,8 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
 
 export const RAIL_GROUPS: { label: string | null; group: SectionMeta['group'] }[] = [
   { label: null, group: 'top' },
-  { label: 'Account', group: 'account' },
+  { label: 'You', group: 'you' },
+  { label: 'WhatsApp', group: 'whatsapp' },
   { label: 'Workspace', group: 'workspace' },
 ];
 

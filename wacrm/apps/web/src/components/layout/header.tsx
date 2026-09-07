@@ -9,7 +9,9 @@ const pageTitles: Record<string, string> = {
   "/dashboard": "dashboard",
   "/inbox": "inbox",
   "/notifications": "notifications",
+  "/audience": "audience",
   "/contacts": "audience",
+  "/deals": "deals",
   "/pipelines": "deals",
   "/broadcasts": "broadcasts",
   "/campaigns": "campaigns",
@@ -17,8 +19,8 @@ const pageTitles: Record<string, string> = {
   "/settings": "settings",
   "/flows": "flows",
   "/agents": "agents",
-  "/wa-groups": "waGroups",
-  "/contact-groups": "contactGroups",
+  "/wa-groups": "audience",
+  "/contact-groups": "audience",
 };
 
 function getPageTitleKey(pathname: string): string {

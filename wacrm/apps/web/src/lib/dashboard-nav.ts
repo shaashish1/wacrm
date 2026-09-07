@@ -4,9 +4,9 @@
  */
 export const PRIMARY_NAV_HREFS = [
   "/inbox",
-  "/contacts",
+  "/audience",
   "/campaigns",
-  "/pipelines",
+  "/deals",
   "/settings",
 ] as const;
 
@@ -19,7 +19,9 @@ export const DASHBOARD_NAV_HREFS = [
   "/dashboard",
   "/inbox",
   "/notifications",
+  "/audience",
   "/contacts",
+  "/deals",
   "/pipelines",
   "/broadcasts",
   "/campaigns",

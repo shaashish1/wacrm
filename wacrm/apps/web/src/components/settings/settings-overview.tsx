@@ -217,6 +217,21 @@ export function SettingsOverview({
       loading: false,
       subtitle: t('appearance', { mode: cap(mode), theme: themeName }),
     },
+    {
+      section: 'pacing',
+      loading: false,
+      subtitle: 'Delay between sends — not a ban warranty',
+    },
+    {
+      section: 'landings',
+      loading: false,
+      subtitle: 'Capture consent. Extract is not a send list.',
+    },
+    {
+      section: 'api',
+      loading: false,
+      subtitle: tSections('api'),
+    },
   ];
 
   return (
