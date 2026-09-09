@@ -59,9 +59,9 @@ export function WWebJSConfig() {
       .update({ config: newConfig })
       .eq('account_id', accountId);
     if (error) {
-      toast.error('Failed to update anti-ban strategy');
+      toast.error('Failed to save send pacing');
     } else {
-      toast.success('Anti-ban strategy updated. Will apply on next restart.');
+      toast.success('Send pacing saved. Restart the unofficial session to apply.');
       setSession((prev: any) => ({ ...prev, config: newConfig }));
     }
     setUpdatingPreset(false);
@@ -297,8 +297,8 @@ export function WWebJSConfig() {
             </CardTitle>
             <CardDescription>
               {currentlyWarming
-                ? `Day ${daysInWarming} of 7. Rate limits and random jitter are applied to prevent bans.`
-                : 'Your account has passed the warming phase. No jitter limits are applied.'}
+                ? `Day ${daysInWarming} of 7. Rate limits and random delay are applied. This is pacing, not a ban warranty.`
+                : 'Warming window has ended. Send delay still applies if you set it.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -322,10 +322,10 @@ export function WWebJSConfig() {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Baileys broadcast delay</CardTitle>
+          <CardTitle className="text-sm font-medium">Send delay</CardTitle>
           <CardDescription>
-            Default random delay (seconds) after warming. Per-broadcast values in the
-            wizard override this. Not a ToS or anti-ban guarantee.
+            Default random delay in seconds. Per-broadcast values in the
+            wizard override this. This is pacing, not a ToS or ban warranty.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3">
@@ -421,10 +421,10 @@ export function WWebJSConfig() {
                   <SelectValue placeholder="Select strategy" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="conservative">Conservative (Safest, Slow)</SelectItem>
-                  <SelectItem value="moderate">Moderate (Balanced)</SelectItem>
-                  <SelectItem value="aggressive">Aggressive (Faster, Higher Risk)</SelectItem>
-                  <SelectItem value="high-volume">High Volume (Max Speed)</SelectItem>
+                  <SelectItem value="conservative">Conservative — slower</SelectItem>
+                  <SelectItem value="moderate">Moderate</SelectItem>
+                  <SelectItem value="aggressive">Faster — higher ban risk</SelectItem>
+                  <SelectItem value="high-volume">Fastest — highest ban risk</SelectItem>
                 </SelectContent>
               </Select>
             </div>

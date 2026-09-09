@@ -78,12 +78,27 @@ interface NavItem {
   icon: typeof MessageSquare;
 }
 
-const navItems: NavItem[] = [
-  { href: "/inbox", labelKey: "inbox", icon: MessageSquare },
-  { href: "/contacts", labelKey: "audience", icon: Users },
-  { href: "/campaigns", labelKey: "campaigns", icon: Send },
-  { href: "/pipelines", labelKey: "deals", icon: GitBranch },
-  { href: "/settings", labelKey: "settings", icon: Settings },
+const navItems: (NavItem & { match?: string[] })[] = [
+  { href: "/inbox", labelKey: "inbox", icon: MessageSquare, match: ["/inbox"] },
+  {
+    href: "/audience",
+    labelKey: "audience",
+    icon: Users,
+    match: ["/audience", "/contacts", "/contact-groups", "/wa-groups"],
+  },
+  {
+    href: "/campaigns",
+    labelKey: "campaigns",
+    icon: Send,
+    match: ["/campaigns", "/broadcasts"],
+  },
+  {
+    href: "/deals",
+    labelKey: "deals",
+    icon: GitBranch,
+    match: ["/deals", "/pipelines"],
+  },
+  { href: "/settings", labelKey: "settings", icon: Settings, match: ["/settings"] },
 ];
 
 interface SidebarProps {
@@ -189,9 +204,10 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="flex flex-col gap-1">
             {navItems.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/dashboard" && pathname.startsWith(item.href));
+              const isActive = (item.match ?? [item.href]).some(
+                (prefix) =>
+                  pathname === prefix || pathname.startsWith(`${prefix}/`),
+              );
 
               const showUnreadDot =
                 item.href === "/inbox" && totalUnread > 0 && !isActive;

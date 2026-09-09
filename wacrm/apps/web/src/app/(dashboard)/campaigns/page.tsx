@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,9 +40,10 @@ import { useCan } from '@/hooks/use-can';
 import { GatedButton } from '@/components/ui/gated-button';
 import { PageIntro } from '@/components/layout/page-intro';
 import { CAMPAIGNS_NAV, SectionNav } from '@/components/layout/section-nav';
+import { ConsentGateLegend } from '@/components/product/consent-gate-legend';
+import Link from 'next/link';
 
 export default function CampaignsPage() {
-  const supabase = createClient();
   const canEdit = useCan('send-messages');
 
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -82,7 +82,7 @@ export default function CampaignsPage() {
   function openAddForm() {
     setEditCampaign(null);
     setName('');
-    setChannel('email');
+    setChannel('whatsapp');
     setSteps([{ delay_hours: 0, channel: 'whatsapp', body_text: '' }]);
     setFormOpen(true);
   }
@@ -90,7 +90,7 @@ export default function CampaignsPage() {
   async function openEditForm(campaign: any) {
     setEditCampaign(campaign);
     setName(campaign.name || '');
-    setChannel(campaign.channel || 'email');
+    setChannel(campaign.channel || 'whatsapp');
     try {
       const res = await fetch(`/api/campaigns/${campaign.id}`);
       const json = await res.json();
@@ -173,7 +173,7 @@ export default function CampaignsPage() {
     <div className="space-y-6">
       <SectionNav items={CAMPAIGNS_NAV} label="Campaigns" />
       <PageIntro
-        description="Consented audience only. Compliance can refuse. Extract is not a send list."
+        description="Consented audience only. Compliance can refuse. Extract is not a send list. Schedule stays off when the send set is empty."
         actions={
           <GatedButton
             canAct={canEdit}
@@ -182,63 +182,63 @@ export default function CampaignsPage() {
             className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <Plus className="size-4 mr-2" />
-            Create campaign
+            New campaign
           </GatedButton>
         }
       />
 
-      <div className="rounded-lg border border-border overflow-hidden bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-border hover:bg-transparent">
-              <TableHead className="text-muted-foreground">Name</TableHead>
-              <TableHead className="text-muted-foreground">Status</TableHead>
-              <TableHead className="text-muted-foreground">Channel</TableHead>
-              <TableHead className="text-muted-foreground">Enrollments</TableHead>
-              <TableHead className="w-12"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow className="border-border">
-                <TableCell colSpan={5} className="text-center py-12">
-                  <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="size-6 animate-spin text-primary" />
-                    <p className="text-sm text-muted-foreground">Loading campaigns...</p>
-                  </div>
-                </TableCell>
+      {loading ? (
+        <div className="flex items-center justify-center rounded-lg border border-border bg-card py-16">
+          <Loader2 className="size-6 animate-spin text-primary" />
+        </div>
+      ) : campaigns.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-card px-6 py-16 text-center">
+          <Send className="mx-auto size-8 text-muted-foreground" />
+          <h2 className="font-heading mt-4 text-base font-semibold text-foreground">
+            No campaigns
+          </h2>
+          <p className="mx-auto mt-2 max-w-[48ch] text-sm leading-6 text-muted-foreground">
+            AudienceGate will not send to a book that never said yes.
+            Capture consent on a landing first. This is not a blast tool.
+          </p>
+          <GatedButton
+            canAct={canEdit}
+            gateReason="create campaigns"
+            onClick={openAddForm}
+            className="mt-6 bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="size-4 mr-2" />
+            New campaign
+          </GatedButton>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Name
+                </TableHead>
+                <TableHead className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Status
+                </TableHead>
+                <TableHead className="hidden text-[11px] font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">
+                  Channel
+                </TableHead>
+                <TableHead className="w-12" />
               </TableRow>
-            ) : campaigns.length === 0 ? (
-              <TableRow className="border-border">
-                <TableCell colSpan={5} className="text-center py-12">
-                  <div className="flex flex-col items-center gap-2">
-                    <Send className="size-8 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">No campaigns found.</p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              campaigns.map((campaign) => (
-                <TableRow key={campaign.id} className="border-border hover:bg-muted/50 cursor-pointer" onClick={() => {/* Navigate to campaign details */}}>
-                  <TableCell className="text-foreground font-medium">
+            </TableHeader>
+            <TableBody>
+              {campaigns.map((campaign) => (
+                <TableRow key={campaign.id} className="border-border">
+                  <TableCell className="font-medium text-foreground">
                     {campaign.name}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-                      campaign.status === 'active' ? 'bg-green-500/10 text-green-500' :
-                      campaign.status === 'draft' ? 'bg-slate-500/10 text-slate-500' :
-                      'bg-orange-500/10 text-orange-500'
-                    }`}>
-                      {campaign.status}
-                    </span>
+                  <TableCell className="capitalize text-muted-foreground">
+                    {campaign.status || "draft"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground capitalize">
-                    {campaign.channel}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {typeof campaign.enrollments_count === "number"
-                      ? campaign.enrollments_count
-                      : "—"}
+                  <TableCell className="hidden capitalize text-muted-foreground sm:table-cell">
+                    {campaign.channel || "whatsapp"}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -255,18 +255,31 @@ export default function CampaignsPage() {
                         <MoreHorizontal className="size-4" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {campaign.status === 'draft' && (
-                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStart(campaign.id); }}>
-                             <Play className="size-4 mr-2" /> Start Campaign
-                           </DropdownMenuItem>
+                        {campaign.status === "draft" && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStart(campaign.id);
+                            }}
+                          >
+                            <Play className="size-4 mr-2" /> Start
+                          </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditForm(campaign); }}>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditForm(campaign);
+                          }}
+                        >
                           <Pencil className="size-4 mr-2" /> Edit
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           variant="destructive"
-                          onClick={(e) => { e.stopPropagation(); handleDelete(campaign.id); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(campaign.id);
+                          }}
                         >
                           <Trash2 className="size-4 mr-2" /> Delete
                         </DropdownMenuItem>
@@ -274,47 +287,27 @@ export default function CampaignsPage() {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <ConsentGateLegend />
 
       <section className="rounded-lg border border-border bg-card p-5">
         <h2 className="font-heading text-base font-semibold text-foreground">
-          Consent gate
+          Broadcasts
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Audience is the contact group with active WhatsApp consent, not
-          opted out. Extract stays in the CRM. Compliance can refuse the
-          send.
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          One-time send to a consented audience. Same gate.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-md border border-border px-3 py-3">
-            <p className="font-heading text-sm font-semibold text-primary">
-              Eligible
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Landing yes · can be scheduled
-            </p>
-          </div>
-          <div className="rounded-md border border-border px-3 py-3">
-            <p className="font-heading text-sm font-semibold text-muted-foreground">
-              Need consent
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Extract only · out of send
-            </p>
-          </div>
-          <div className="rounded-md border border-border px-3 py-3">
-            <p className="font-heading text-sm font-semibold text-red-400">
-              STOP
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Honor immediately · never re-ask in-thread
-            </p>
-          </div>
-        </div>
+        <Link
+          href="/broadcasts"
+          className="mt-3 inline-flex text-sm font-medium text-primary hover:underline"
+        >
+          Open Broadcasts
+        </Link>
       </section>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
@@ -338,8 +331,8 @@ export default function CampaignsPage() {
                 value={channel}
                 onChange={(e) => setChannel(e.target.value)}
               >
-                <option value="email">Email</option>
                 <option value="whatsapp">WhatsApp</option>
+                <option value="email">Email</option>
                 <option value="multi">Multi-channel</option>
               </select>
             </div>

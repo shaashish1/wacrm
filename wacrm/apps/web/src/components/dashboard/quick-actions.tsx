@@ -14,9 +14,9 @@ interface Action {
 
 const ACTIONS: Action[] = [
   { labelKey: 'inbox', href: '/inbox', icon: MessageSquare },
-  { labelKey: 'audience', href: '/contacts', icon: Users },
+  { labelKey: 'audience', href: '/audience', icon: Users },
   { labelKey: 'campaigns', href: '/campaigns', icon: Send },
-  { labelKey: 'deals', href: '/pipelines', icon: GitBranch },
+  { labelKey: 'deals', href: '/deals', icon: GitBranch },
 ]
 
 export function QuickActions() {

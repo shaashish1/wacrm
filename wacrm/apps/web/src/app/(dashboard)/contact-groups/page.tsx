@@ -157,7 +157,7 @@ export default function ContactGroupsPage() {
     <div className="space-y-6">
       <SectionNav items={AUDIENCE_NAV} label="Audience" />
       <PageIntro
-        description="Static lists and smart segments. Extract is stored here. It is not a send list."
+        description="Lists and smart segments. Extract is stored here. It is not a send list."
         actions={
           <GatedButton
             canAct={canEdit}

@@ -6,7 +6,7 @@ import type { Pipeline, PipelineStage, Deal } from "@/types";
 import { PipelineBoard } from "@/components/pipelines/pipeline-board";
 import { PipelineSettings } from "@/components/pipelines/pipeline-settings";
 import { DealForm } from "@/components/pipelines/deal-form";
-import { PipelineAnalytics } from "@/components/pipelines/pipeline-analytics";
+import { DealsSummary } from "@/components/deals/deals-summary";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -121,7 +121,7 @@ export default function PipelinesPage() {
 
     const { data: pipeline, error } = await supabase
       .from("pipelines")
-      .insert({ user_id: user.id, account_id: accountId, name: "Sales Pipeline" })
+      .insert({ user_id: user.id, account_id: accountId, name: "Deals" })
       .select()
       .single();
 
@@ -316,7 +316,7 @@ export default function PipelinesPage() {
 
   return (
     <div className="space-y-6">
-      <PageIntro description="Consult, intro, and tour deals. WhatsApp is not a patient record." />
+      <PageIntro description="Consult, intro, and tour deals. Notes refuse clinical or identity text. WhatsApp is not a patient record." />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {/* Pipeline selector dropdown */}
@@ -413,7 +413,7 @@ export default function PipelinesPage() {
         </div>
       ) : (
         <>
-          <PipelineAnalytics stages={stages} deals={deals} />
+          <DealsSummary deals={deals} />
           <PipelineBoard
             stages={stages}
             deals={deals}

@@ -60,11 +60,13 @@ import { GatedButton } from '@/components/ui/gated-button';
 import { useTranslations } from 'next-intl';
 import { PageIntro } from '@/components/layout/page-intro';
 import { AUDIENCE_NAV, SectionNav } from '@/components/layout/section-nav';
+import { ConsentLabel } from '@/components/product/consent-gate-legend';
 
 const PAGE_SIZE = 25;
 
 interface ContactWithTags extends Contact {
   tags?: Tag[];
+  consentState?: 'eligible' | 'need_consent' | 'stop';
 }
 
 export default function ContactsPage() {
@@ -194,10 +196,18 @@ export default function ContactsPage() {
 
     // Fetch tags for these contacts
     const contactIds = contactRows.map((c) => c.id);
-    const { data: contactTags } = await supabase
-      .from('contact_tags')
-      .select('contact_id, tag_id')
-      .in('contact_id', contactIds);
+    const [{ data: contactTags }, { data: consentRows }] = await Promise.all([
+      supabase
+        .from('contact_tags')
+        .select('contact_id, tag_id')
+        .in('contact_id', contactIds),
+      supabase
+        .from('consents')
+        .select('contact_id')
+        .eq('channel', 'whatsapp')
+        .is('revoked_at', null)
+        .in('contact_id', contactIds),
+    ]);
     if (seq !== fetchSeq.current) return; // superseded by a newer fetch
 
     const tagsByContact: Record<string, string[]> = {};
@@ -205,12 +215,22 @@ export default function ContactsPage() {
       if (!tagsByContact[ct.contact_id]) tagsByContact[ct.contact_id] = [];
       tagsByContact[ct.contact_id].push(ct.tag_id);
     });
+    const consented = new Set(
+      (consentRows ?? [])
+        .map((row) => row.contact_id as string | null)
+        .filter((id): id is string => !!id),
+    );
 
     const enriched: ContactWithTags[] = contactRows.map((c) => ({
       ...c,
       tags: (tagsByContact[c.id] ?? [])
         .map((tid) => tagsMap[tid])
         .filter(Boolean),
+      consentState: c.opted_out
+        ? 'stop'
+        : consented.has(c.id)
+          ? 'eligible'
+          : 'need_consent',
     }));
 
     setContacts(enriched);
@@ -352,7 +372,9 @@ export default function ContactsPage() {
       <SectionNav items={AUDIENCE_NAV} label="Audience" />
       <PageIntro
         description={
-          totalCount > 0 ? t('subtitle', { count: totalCount }) : t('subtitleZero')
+          totalCount > 0
+            ? `${totalCount} people in the book. Import is not consent.`
+            : 'People in the book. Import is not consent. An imported book is not opted in.'
         }
         actions={
         <div className="flex items-center gap-2">
@@ -549,6 +571,7 @@ export default function ContactsPage() {
                 />
               </TableHead>
               <TableHead className="text-muted-foreground">{t('tableColumns.name')}</TableHead>
+              <TableHead className="text-muted-foreground">Consent</TableHead>
               <TableHead className="text-muted-foreground">{t('tableColumns.phone')}</TableHead>
               <TableHead className="text-muted-foreground hidden md:table-cell">{t('tableColumns.email')}</TableHead>
               <TableHead className="text-muted-foreground hidden xl:table-cell">{t('tableColumns.groupId')}</TableHead>
@@ -561,7 +584,7 @@ export default function ContactsPage() {
           <TableBody>
             {loading ? (
               <TableRow className="border-border">
-                <TableCell colSpan={8} className="text-center py-12">
+                <TableCell colSpan={9} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="size-6 animate-spin text-primary" />
                     <p className="text-sm text-muted-foreground">{t('loading')}</p>
@@ -570,7 +593,7 @@ export default function ContactsPage() {
               </TableRow>
             ) : contacts.length === 0 ? (
               <TableRow className="border-border">
-                <TableCell colSpan={8} className="text-center py-12">
+                <TableCell colSpan={9} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2">
                     <Users className="size-8 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">
@@ -610,6 +633,9 @@ export default function ContactsPage() {
                   </TableCell>
                   <TableCell className="text-foreground font-medium">
                     {contact.name || <span className="text-muted-foreground italic">{t('unnamed')}</span>}
+                  </TableCell>
+                  <TableCell>
+                    <ConsentLabel state={contact.consentState ?? 'need_consent'} />
                   </TableCell>
                   <TableCell className="text-muted-foreground font-mono text-xs">
                     {contact.phone}

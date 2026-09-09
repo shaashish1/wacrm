@@ -1581,8 +1581,10 @@
       "profile": "내 프로필",
       "security": "로그인 & 보안",
       "appearance": "화면 설정",
-      "whatsapp": "WhatsApp",
+      "whatsapp": "WhatsApp / Cloud API",
+      "pacing": "보내기 간격",
       "templates": "템플릿",
+      "quick-replies": "빠른 답장",
       "fields": "필드 & 태그",
       "deals": "딜 & 통화",
       "members": "팀원",
@@ -1591,7 +1593,9 @@
       "meta": "Meta Conversions"
     },
     "groups": {
-      "account": "계정",
+      "account": "나",
+      "you": "나",
+      "whatsapp": "WhatsApp",
       "workspace": "워크스페이스"
     },
     "profile": {

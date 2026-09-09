@@ -146,7 +146,7 @@
   },
   "Inbox": {
     "page": {
-      "whatsappNotConnected": "WhatsApp® is not connected. Go to Settings to connect your account."
+      "whatsappNotConnected": "WhatsApp is not connected. Connect it in Settings."
     },
     "conversationList": {
       "searchPlaceholder": "Search conversations...",
@@ -159,7 +159,7 @@
       "company": "Company",
       "allCompanies": "All companies",
       "clearAll": "Clear all",
-      "noConversations": "No conversations found",
+      "noConversations": "No conversations yet. Replies land here.",
       "noMessagesYet": "No messages yet",
       "unknown": "Unknown"
     },
@@ -182,8 +182,8 @@
       "me": " (me)",
       "noMessagesYet": "No messages yet",
       "sendTemplateHint": "Send a template to start the conversation",
-      "selectConversation": "Select a conversation",
-      "selectConversationHint": "Choose a conversation from the left to start messaging",
+      "selectConversation": "Shared WhatsApp inbox",
+      "selectConversationHint": "Pick a thread. This is the account inbox — not a personal chat list.",
       "today": "Today",
       "yesterday": "Yesterday"
     },
@@ -617,7 +617,7 @@
       "noBroadcastsYet": "No broadcasts yet",
       "createFirst": "Create your first broadcast to reach your contacts at scale.",
       "emptyTitle": "No broadcasts yet",
-      "emptyDesc": "A broadcast is a bulk WhatsApp message. Pick an audience, write (or choose a template), then send now or schedule. You can always come back here to watch progress.",
+      "emptyDesc": "One-time send to a consented audience. Extract is not a send list. AudienceGate will not send to a book that never said yes.",
       "emptyCta": "Create a broadcast",
       "plainText": "Plain text",
       "errorHint": "You can still compose a new broadcast, or retry loading this list.",
@@ -1283,7 +1283,7 @@
   },
   "Settings": {
     "pageTitle": "Settings",
-    "pageDesc": "Account, WhatsApp connection, landings, and team. Automations, flows, and specialists are linked below.",
+    "pageDesc": "Profile, WhatsApp / Cloud API, send pacing, API keys, landings, and appearance.",
     "overview": {
       "notSetup": "Not set up yet",
       "connected": "Connected",
@@ -1582,7 +1582,8 @@
       "profile": "Your profile",
       "security": "Login & security",
       "appearance": "Appearance",
-      "whatsapp": "WhatsApp",
+      "whatsapp": "WhatsApp / Cloud API",
+      "pacing": "Send pacing",
       "templates": "Templates",
       "quick-replies": "Quick replies",
       "fields": "Fields & tags",
@@ -1593,7 +1594,9 @@
       "meta": "Meta Conversions"
     },
     "groups": {
-      "account": "Account",
+      "account": "You",
+      "you": "You",
+      "whatsapp": "WhatsApp",
       "workspace": "Workspace"
     },
     "profile": {
